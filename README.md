@@ -13,6 +13,23 @@ visible to the group.
 
 ---
 
+## Demo
+
+**Slice 1 — the foundation, live and connected to a real database.**
+
+![Nadi Slice 1 — foundation page showing a live database connection](screenshots/slice1-foundation.png)
+
+This page does one thing on purpose: it reads a row from PostgreSQL through
+the full request path — page component, service, repository, Prisma — and
+renders it. Nothing here is a mock. The green status and timestamp come from
+an actual query against a live Neon database, proving the chain end to end
+before any feature is built on top of it.
+
+More screenshots land here as each slice ships — see the roadmap below for
+what's next.
+
+---
+
 ## Why this repository looks the way it does
 
 This project is being built the way a startup would build it: as a sequence of
