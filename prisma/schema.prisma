@@ -1,0 +1,25 @@
+// Slice 1 schema.
+//
+// This is deliberately tiny. Its only job is to prove the full chain works:
+// browser -> Vercel -> service layer -> Prisma -> Postgres.
+//
+// The real domain model (accounts, memberships, tasks, categories) arrives in
+// Slice 2, where it gets designed properly rather than grown by accident.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model HealthCheck {
+  id        String   @id @default(cuid())
+  message   String
+  createdAt DateTime @default(now())
+
+  @@map("health_checks")
+}

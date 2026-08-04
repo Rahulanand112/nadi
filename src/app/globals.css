@@ -1,0 +1,85 @@
+@import "tailwindcss";
+
+/* Dark mode is class-driven, not OS-driven, because v0.1 ships a manual
+   toggle. The .dark class goes on <html>. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* Brand.
+     Iris sits deliberately far from green/amber/red, which are reserved for
+     task status. A primary button must never be mistaken for a completed task. */
+  --color-iris-50: #eef0fb;
+  --color-iris-100: #d9ddf6;
+  --color-iris-300: #9ea6e4;
+  --color-iris-500: #5f57c9;
+  --color-iris-600: #4f46b8;
+  --color-iris-700: #403a96;
+  --color-iris-900: #262263;
+
+  /* Neutrals. Cool paper, blue-black ink -- not warm cream. */
+  --color-paper-0: #ffffff;
+  --color-paper-50: #f7f8fa;
+  --color-paper-100: #eef0f3;
+  --color-paper-200: #e0e3e9;
+  --color-paper-300: #c6cbd4;
+  --color-ink-400: #7a828f;
+  --color-ink-600: #4a515c;
+  --color-ink-800: #22262e;
+  --color-ink-900: #14161c;
+  --color-ink-950: #0d0f14;
+
+  /* Task status. Muted on purpose -- a dashboard of thirty tasks should read
+     as calm, not as a set of traffic lights. */
+  --color-status-done: #2f8f5b;
+  --color-status-done-soft: #e6f4ec;
+  --color-status-upcoming: #b7810b;
+  --color-status-upcoming-soft: #fbf1da;
+  --color-status-overdue: #c3453b;
+  --color-status-overdue-soft: #fbeae8;
+
+  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-sans: var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+
+  --radius-card: 0.875rem;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-paper-50);
+    color: var(--color-ink-900);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv05" 1;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .dark body {
+    background-color: var(--color-ink-950);
+    color: var(--color-paper-100);
+  }
+
+  /* Times, dates, streak counts and scores are read as columns of digits.
+     Tabular figures stop them jittering as values change. */
+  time,
+  [data-numeric] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-iris-600);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
