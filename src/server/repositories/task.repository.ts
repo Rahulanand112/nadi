@@ -1,5 +1,5 @@
 import { db } from "@/server/db";
-import type { Prisma, TaskPriority } from "@prisma/client";
+import type { Prisma, TaskPriority, RecurrenceFrequency } from "@prisma/client";
 
 const withPeople = {
   assignee: { select: { id: true, displayName: true } },
@@ -34,6 +34,8 @@ export const taskRepository = {
     isAllDay: boolean;
     assigneeId?: string | null;
     createdById: string;
+    recurrence?: RecurrenceFrequency | null;
+    seriesId?: string | null;
   }) {
     return db.task.create({ data, include: withPeople });
   },

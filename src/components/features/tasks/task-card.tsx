@@ -2,6 +2,7 @@
 
 import { deriveStatus, formatDue, STATUS_STYLES } from "@/lib/task-status";
 import type { TaskDTO } from "@/types/task";
+import { recurrenceLabel } from "@/lib/recurrence";
 
 const PRIORITY_LABEL = { HIGH: "High", MEDIUM: "Medium", LOW: "Low" } as const;
 
@@ -86,6 +87,10 @@ export function TaskCard({
 
           {task.priority !== "MEDIUM" ? (
             <span className="text-ink-400">{PRIORITY_LABEL[task.priority]} priority</span>
+          ) : null}
+
+          {task.recurrence ? (
+            <span className="text-ink-400">↻ {recurrenceLabel(task.recurrence)}</span>
           ) : null}
 
           {showAssignee && task.assignee ? (

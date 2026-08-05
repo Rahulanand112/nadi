@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { MemberOption } from "@/types/task";
+import { RECURRENCE_OPTIONS, type Recurrence } from "@/lib/recurrence";
 
 const inputClass =
   "w-full rounded-lg border border-paper-300 bg-paper-0 px-3 py-2 text-sm text-ink-900 outline-none focus:border-iris-600 dark:border-ink-800 dark:bg-ink-950 dark:text-paper-100";
@@ -22,6 +23,7 @@ export function TaskForm({
     dueAt: string | null;
     isAllDay: boolean;
     assigneeId: string;
+    recurrence: Recurrence | null;
   }) => Promise<void>;
   onCancel: () => void;
 }) {
@@ -32,6 +34,7 @@ export function TaskForm({
   const [dueDate, setDueDate] = useState("");
   const [dueTime, setDueTime] = useState("");
   const [assigneeId, setAssigneeId] = useState(defaultAssigneeId);
+  const [recurrence, setRecurrence] = useState<Recurrence | "">("");
   const [isSaving, setSaving] = useState(false);
 
   async function submit(event: React.FormEvent) {
@@ -54,6 +57,7 @@ export function TaskForm({
       dueAt,
       isAllDay,
       assigneeId,
+      recurrence: recurrence || null,
     });
 
     setSaving(false);
@@ -132,12 +136,30 @@ export function TaskForm({
         </label>
       </div>
 
-      <input
-        value={category}
-        onChange={(e) => setCategory(e.target.value)}
-        placeholder="Category (optional) — e.g. Chores, Study, Work"
-        className={`${inputClass} mt-2`}
-      />
+      <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <input
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          placeholder="Category (optional)"
+          className={inputClass}
+        />
+
+        <label className="block">
+          <select
+            value={recurrence}
+            onChange={(e) => setRecurrence(e.target.value as Recurrence | "")}
+            disabled={!dueDate}
+            title={dueDate ? undefined : "Set a due date first — a repeat needs something to repeat from"}
+            className={`${inputClass} disabled:opacity-50`}
+          >
+            {RECURRENCE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
 
       <div className="mt-3 flex justify-end gap-2">
         <button

@@ -115,6 +115,7 @@ model Workspace {
   memberships Membership[]
   invitations Invitation[]
   tasks       Task[]
+  habits      Habit[]
 
   @@map("workspaces")
 }
@@ -135,6 +136,7 @@ model Membership {
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   assignedTasks Task[]    @relation("AssignedTasks")
   createdTasks  Task[]    @relation("CreatedTasks")
+  habits        Habit[]
 
   @@unique([workspaceId, userId])
   @@index([userId])
@@ -200,6 +202,13 @@ model Task {
   assigneeId  String?
   createdById String
 
+  /// Null means this task happens once. When set, completing the task creates
+  /// the next occurrence rather than ending the series.
+  recurrence         RecurrenceFrequency?
+  /// Every occurrence of the same repeating task shares this id, so a series
+  /// can be counted or cancelled as a unit later.
+  seriesId           String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -209,5 +218,66 @@ model Task {
 
   @@index([workspaceId, dueAt])
   @@index([assigneeId])
+  @@index([seriesId])
   @@map("tasks")
+}
+
+// ---------------------------------------------------------------------------
+// v0.2 — recurrence and habits.
+//
+// Recurrence lives on the Task itself rather than in a separate "template"
+// table. Completing a recurring task spawns the next occurrence at that
+// moment, so the database holds one row per real thing to do instead of
+// hundreds of pre-generated future rows that may never happen.
+// ---------------------------------------------------------------------------
+
+enum RecurrenceFrequency {
+  DAILY
+  WEEKDAYS
+  WEEKLY
+  MONTHLY
+}
+
+/// A habit is a thing you want to do repeatedly, where consistency is the
+/// point rather than completion. Deliberately NOT modelled as a recurring
+/// task: a missed task is a failure to be rescheduled, while a missed day of a
+/// habit is just a gap in a chain. Merging them would force one set of
+/// semantics onto both.
+model Habit {
+  id           String  @id @default(cuid())
+  workspaceId  String
+  membershipId String
+  name         String
+  /// A single emoji shown beside the habit. Cheap personality, no upload.
+  icon         String?
+  /// How many days a week the person is aiming for. Used by the weekly
+  /// consistency figure, not enforced.
+  targetPerWeek Int    @default(7)
+  archivedAt   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  membership  Membership        @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  completions HabitCompletion[]
+
+  @@index([workspaceId])
+  @@index([membershipId])
+  @@map("habits")
+}
+
+/// One row per habit per day it was done. `day` is a plain date, not a
+/// timestamp: "did you do it on the 5th" has no time component, and storing a
+/// timestamp would make timezone bugs inevitable when computing streaks.
+model HabitCompletion {
+  id        String   @id @default(cuid())
+  habitId   String
+  day       DateTime @db.Date
+  createdAt DateTime @default(now())
+
+  habit Habit @relation(fields: [habitId], references: [id], onDelete: Cascade)
+
+  @@unique([habitId, day])
+  @@index([habitId, day])
+  @@map("habit_completions")
 }

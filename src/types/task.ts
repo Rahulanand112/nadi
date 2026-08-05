@@ -12,6 +12,7 @@ export type TaskDTO = {
   dueAt: string | null;
   isAllDay: boolean;
   completedAt: string | null;
+  recurrence: "DAILY" | "WEEKDAYS" | "WEEKLY" | "MONTHLY" | null;
   assignee: TaskPerson;
   createdBy: { id: string; displayName: string };
 };

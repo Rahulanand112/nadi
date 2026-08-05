@@ -82,6 +82,7 @@ export function TaskBoard({
   async function createTask(input: Parameters<
     React.ComponentProps<typeof TaskForm>["onCreate"]
   >[0]) {
+    // input already carries `recurrence`; the API validates it.
     const response = await fetch(`/api/workspaces/${slug}/tasks`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

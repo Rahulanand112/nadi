@@ -1,4 +1,5 @@
-import type { TaskPriority } from "@prisma/client";
+import type { TaskPriority, RecurrenceFrequency } from "@prisma/client";
+import { nextDueDate } from "@/lib/recurrence";
 import { taskRepository } from "@/server/repositories/task.repository";
 import { workspaceRepository } from "@/server/repositories/workspace.repository";
 import { ValidationError, ForbiddenError, NotFoundError } from "@/server/errors";
@@ -35,6 +36,7 @@ export const taskService = {
     dueAt?: Date | null;
     isAllDay: boolean;
     assigneeId?: string | null;
+    recurrence?: RecurrenceFrequency | null;
   }) {
     const membership = await workspaceRepository.findMembership(
       input.workspaceId,
@@ -55,6 +57,10 @@ export const taskService = {
       await assertMembershipInWorkspace(input.assigneeId, input.workspaceId);
     }
 
+    // A repeating task with no due date has nothing to advance from, so the
+    // recurrence is dropped rather than silently doing nothing later.
+    const recurrence = input.dueAt ? (input.recurrence ?? null) : null;
+
     return taskRepository.create({
       workspaceId: input.workspaceId,
       title,
@@ -65,6 +71,8 @@ export const taskService = {
       isAllDay: input.isAllDay,
       assigneeId: input.assigneeId ?? membership.id,
       createdById: membership.id,
+      recurrence,
+      seriesId: recurrence ? crypto.randomUUID() : null,
     });
   },
 
@@ -103,12 +111,33 @@ export const taskService = {
 
     const { completed, ...rest } = input.data;
 
-    return taskRepository.update(input.taskId, {
+    const updated = await taskRepository.update(input.taskId, {
       ...rest,
       ...(completed === undefined
         ? {}
         : { completedAt: completed ? new Date() : null }),
     });
+
+    // Completing a repeating task creates the next occurrence. Spawning on
+    // completion rather than pre-generating a year of rows means the database
+    // only ever holds things that are actually going to happen.
+    if (completed === true && task.recurrence && task.dueAt && !task.completedAt) {
+      await taskRepository.create({
+        workspaceId: task.workspaceId,
+        title: task.title,
+        description: task.description,
+        category: task.category,
+        priority: task.priority,
+        dueAt: nextDueDate(task.recurrence, task.dueAt),
+        isAllDay: task.isAllDay,
+        assigneeId: task.assigneeId,
+        createdById: task.createdById,
+        recurrence: task.recurrence,
+        seriesId: task.seriesId ?? crypto.randomUUID(),
+      });
+    }
+
+    return updated;
   },
 
   async remove(input: { taskId: string; userId: string }) {

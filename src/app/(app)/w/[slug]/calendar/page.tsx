@@ -33,6 +33,7 @@ export default async function CalendarPage({
     dueAt: task.dueAt?.toISOString() ?? null,
     isAllDay: task.isAllDay,
     completedAt: task.completedAt?.toISOString() ?? null,
+    recurrence: task.recurrence,
     assignee: task.assignee ?? null,
     createdBy: task.createdBy,
   }));

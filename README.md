@@ -7,9 +7,10 @@ Nadi inverts that: an account is a household or a team, members live inside
 it, and every task, habit and statistic belongs to a member while remaining
 visible to the group.
 
-> **Status: v0.1.0 — feature complete.**
-> All eight slices shipped. Sign up, create a household or team, invite members
-> by link, assign tasks, and see them on a shared board or calendar.
+> **Status: v0.2 in progress** — v0.1.0 shipped and tagged.
+> v0.1 covers accounts, workspaces, invitations, tasks and the calendar. v0.2
+> adds recurring tasks, habit tracking and streaks (slices 1–3 done), with
+> the contribution graph, productivity score and leaderboard still to come.
 
 ---
 
@@ -70,6 +71,26 @@ paint, so there's no flash of the wrong theme on load. Slice 8 added error
 boundaries, a proper not-found page for bad or unauthorized workspace URLs,
 and [`SECURITY.md`](SECURITY.md), which documents the authorization rules and
 the gaps still open at this version rather than leaving them implicit.
+
+**v0.2 — recurring tasks, habits, and streaks.**
+
+![Nadi v0.2 — a habit with a seven-day row, showing streak, best and weekly consistency](screenshots/v02-habits-streaks.png)
+
+Habits are modelled separately from tasks on purpose: a missed task is a
+failure to be rescheduled, while a missed day of a habit is just a gap in a
+chain, and forcing one set of semantics onto both would serve neither.
+
+The figures above are the non-obvious case, not the flattering one — three days
+ticked with gaps between them gives **streak 0** (nothing done today or
+yesterday, so no run is live), **best 1** (no two ticked days are adjacent) and
+**43%** (three days against a target of seven). Streaks count yesterday as
+still alive by design: at 9am, someone who has kept a habit for a month but
+hasn't done today's yet has a streak of 30, not 0.
+
+Recurring tasks spawn their next occurrence on completion rather than
+pre-generating a year of rows, and advance from the *due date* rather than from
+now — so a weekly task completed three days late is next due on schedule
+instead of drifting later every cycle.
 
 ---
 
@@ -156,8 +177,9 @@ first would have delayed a testable product by weeks. See
 
 **Beyond v0.1**
 
-- **v0.2 — consistency and measurement.** Recurring tasks, habit tracking with
-  streaks and a contribution graph, productivity scoring, member leaderboards.
+- **v0.2 — consistency and measurement** *(in progress)*. Recurring tasks ✓,
+  habit tracking ✓, streaks ✓, contribution graph, productivity scoring,
+  member leaderboards.
 - **v0.3 — scheduling and collaboration.** Reminders, smart rescheduling,
   scheduling-conflict detection, drag and drop on the calendar, and comments on
   tasks.

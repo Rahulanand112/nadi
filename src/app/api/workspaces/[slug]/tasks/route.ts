@@ -13,6 +13,7 @@ const createTaskSchema = z.object({
   dueAt: z.string().datetime().nullish(),
   isAllDay: z.boolean().default(false),
   assigneeId: z.string().nullish(),
+  recurrence: z.enum(["DAILY", "WEEKDAYS", "WEEKLY", "MONTHLY"]).nullish(),
 });
 
 export async function POST(
@@ -46,6 +47,7 @@ export async function POST(
       dueAt: parsed.data.dueAt ? new Date(parsed.data.dueAt) : null,
       isAllDay: parsed.data.isAllDay,
       assigneeId: parsed.data.assigneeId,
+      recurrence: parsed.data.recurrence,
     });
 
     return NextResponse.json(task, { status: 201 });
