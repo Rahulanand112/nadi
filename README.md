@@ -114,8 +114,8 @@ first would have delayed a testable product by weeks. See
 | :---: | ----- | ----- |
 | 1 | Foundation, deploy pipeline, service-layer boundary | Complete |
 | 2 | Database schema and authentication | Complete |
-| 3 | Members, invitations, account switching | Next |
-| 4 | Task CRUD, assignment, status logic | Planned |
+| 3 | Members, invitations, workspace switching | Complete |
+| 4 | Task CRUD, assignment, status logic | Next |
 | 5 | Personal and shared dashboards | Planned |
 | 6 | Calendar — month and week views | Planned |
 | 7 | Dark mode, responsiveness, motion | Planned |

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signUp } from "@/lib/auth-client";
 
 /**
@@ -14,8 +14,13 @@ import { signUp } from "@/lib/auth-client";
  * error state below -- since silently losing the workspace name would be
  * worse than asking them to retry.
  */
-export default function SignUpPage() {
+function SignUpForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Arriving from an invite link: skip workspace creation and send them back
+  // to accept the invite instead. You either create a space or join one.
+  const next = searchParams.get("next");
+  const isJoining = Boolean(next);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,6 +38,12 @@ export default function SignUpPage() {
     if (signUpError) {
       setError(signUpError.message ?? "Could not create your account.");
       setIsSubmitting(false);
+      return;
+    }
+
+    if (isJoining) {
+      router.push(next!);
+      router.refresh();
       return;
     }
 
@@ -63,7 +74,9 @@ export default function SignUpPage() {
         Create your account
       </h1>
       <p className="mt-2 text-sm text-ink-600 dark:text-ink-400">
-        You&rsquo;ll also set up the space your household or team shares.
+        {isJoining
+          ? "Then you'll be taken back to accept your invitation."
+          : "You'll also set up the space your household or team shares."}
       </p>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-4">
@@ -100,17 +113,19 @@ export default function SignUpPage() {
           />
         </Field>
 
-        <Field
-          label="Workspace name"
-          hint="e.g. &ldquo;Sharma Family&rdquo; or &ldquo;Acme Team&rdquo;"
-        >
-          <input
-            required
-            value={workspaceName}
-            onChange={(e) => setWorkspaceName(e.target.value)}
-            className={inputClass}
-          />
-        </Field>
+        {isJoining ? null : (
+          <Field
+            label="Workspace name"
+            hint="e.g. &ldquo;Sharma Family&rdquo; or &ldquo;Acme Team&rdquo;"
+          >
+            <input
+              required
+              value={workspaceName}
+              onChange={(e) => setWorkspaceName(e.target.value)}
+              className={inputClass}
+            />
+          </Field>
+        )}
 
         {error ? (
           <p className="rounded-lg bg-status-overdue-soft px-3 py-2 text-sm text-status-overdue">
@@ -129,11 +144,22 @@ export default function SignUpPage() {
 
       <p className="mt-6 text-center text-sm text-ink-600 dark:text-ink-400">
         Already have an account?{" "}
-        <a href="/login" className="font-medium text-iris-600 hover:underline">
+        <a
+          href={next ? `/login?next=${encodeURIComponent(next)}` : "/login"}
+          className="font-medium text-iris-600 hover:underline"
+        >
           Sign in
         </a>
       </p>
     </main>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense>
+      <SignUpForm />
+    </Suspense>
   );
 }
 

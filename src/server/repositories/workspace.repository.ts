@@ -50,3 +50,30 @@ export const workspaceRepository = {
     });
   },
 };
+
+/** Membership reads and writes. Kept alongside workspaces because a
+ * membership has no meaning independent of the workspace it belongs to. */
+export const membershipRepository = {
+  listForWorkspace(workspaceId: string) {
+    return db.membership.findMany({
+      where: { workspaceId },
+      include: { user: { select: { id: true, email: true, image: true } } },
+      orderBy: [{ role: "asc" }, { createdAt: "asc" }],
+    });
+  },
+
+  findById(id: string) {
+    return db.membership.findUnique({
+      where: { id },
+      include: { workspace: true },
+    });
+  },
+
+  countOwners(workspaceId: string) {
+    return db.membership.count({ where: { workspaceId, role: "OWNER" } });
+  },
+
+  delete(id: string) {
+    return db.membership.delete({ where: { id } });
+  },
+};

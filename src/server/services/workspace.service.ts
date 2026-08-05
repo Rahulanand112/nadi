@@ -1,5 +1,5 @@
 import { workspaceRepository } from "@/server/repositories/workspace.repository";
-import { ValidationError, ForbiddenError } from "@/server/errors";
+import { ValidationError, ForbiddenError, NotFoundError } from "@/server/errors";
 
 /** Turns "Sharma Family" into "sharma-family", then makes it unique. */
 function slugify(name: string): string {
@@ -65,3 +65,21 @@ export const workspaceService = {
     return membership;
   },
 };
+
+/** Resolves a workspace by its URL slug and confirms the user belongs to it.
+ * Every page and route under /w/[slug] calls this first -- it is the single
+ * checkpoint that stops someone loading another household's data by guessing
+ * a URL. */
+export async function requireWorkspaceAccess(slug: string, userId: string) {
+  const workspace = await workspaceRepository.findBySlug(slug);
+  if (!workspace) {
+    throw new NotFoundError("Workspace");
+  }
+
+  const membership = await workspaceRepository.findMembership(workspace.id, userId);
+  if (!membership) {
+    throw new ForbiddenError("You are not a member of this workspace.");
+  }
+
+  return { workspace, membership };
+}

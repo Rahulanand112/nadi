@@ -127,6 +127,100 @@ plugin's shape — is larger and arrives later, when more code depends on it.
 
 ---
 
+## ADR 006 — Invitations are share links, not emails
+
+**Date:** August 2026
+**Status:** Accepted
+
+### Context
+
+New members need a way into a workspace. The conventional approach is an
+emailed invitation.
+
+### Options
+
+1. **Email invitations.** Familiar, and the invite is tied to a specific
+   address. Requires an email provider, API credentials, and domain
+   verification, and introduces a silent failure mode: an invite that lands in
+   spam looks identical to one that was never sent.
+2. **Share links.** The owner generates a URL and passes it on by whatever
+   channel they already use. No third-party dependency, no delivery failures.
+
+### Decision
+
+Option 2. Invitations produce a link containing a high-entropy token; the owner
+copies it and sends it however they like.
+
+### Rationale
+
+The delivery assumption behind email invitations does not hold for this
+product. When inviting a parent or sibling, the two people are frequently in
+the same room, and a message on whatever they already use reaches them more
+reliably than email. Removing the provider also removes an entire class of
+"it says sent but never arrived" support problems at a stage where there is no
+one to provide support.
+
+### Cost and mitigation
+
+The token is a bearer credential: whoever holds the link can join. This is the
+same model as a document shared with "anyone with the link", and it is a real
+tradeoff, not an oversight. It is bounded by three things — invitations expire
+after seven days, they are consumed on first use, and every pending invitation
+is listed on the members page where the owner can revoke it.
+
+For a household or a small team this is the right balance. A product serving
+regulated or enterprise customers would need address-bound invitations and
+should revisit this decision rather than inherit it.
+
+### Related
+
+Email delivery can be layered on later without changing this model: the same
+token would simply also be sent by email rather than only copied.
+
+---
+
+## ADR 007 — The active workspace lives in the URL
+
+**Date:** August 2026
+**Status:** Accepted
+
+### Context
+
+A user may belong to several workspaces. Each request must establish which one
+is being viewed.
+
+### Options
+
+1. **Server-side "active workspace"** held in a cookie or session record.
+   Produces shorter URLs.
+2. **Workspace slug in the path** — `/w/sharma-family/dashboard`.
+
+### Decision
+
+Option 2. Every authenticated view lives under `/w/[slug]`, and
+`requireWorkspaceAccess` runs in the segment layout, so no page below it can be
+reached without a verified membership.
+
+### Rationale
+
+The failure mode of the cookie approach is the one that matters: a stale or
+mis-set active workspace renders one household's data under another's context.
+That is the single worst bug this product could ship, and no amount of care in
+individual queries fully rules it out when scope is ambient rather than
+explicit.
+
+Carrying the slug in the path makes scope a parameter of the request. Links are
+shareable, browser history behaves correctly, two workspaces can be open in two
+tabs, and a missing membership check surfaces as an immediate 404 rather than
+as silently wrong data.
+
+### Cost
+
+Longer URLs, and a redirect at `/dashboard` to resolve a user's default
+workspace. Both are trivial next to the risk avoided.
+
+---
+
 ## ADR 003 — PostgreSQL over a document database
 
 **Date:** August 2026

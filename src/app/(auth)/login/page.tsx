@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "@/lib/auth-client";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const next = searchParams.get("next");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +26,7 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/dashboard");
+    router.push(next ?? "/dashboard");
     router.refresh();
   }
 
@@ -83,10 +85,22 @@ export default function LoginPage() {
 
       <p className="mt-6 text-center text-sm text-ink-600 dark:text-ink-400">
         Don&rsquo;t have an account?{" "}
-        <a href="/sign-up" className="font-medium text-iris-600 hover:underline">
+        <a
+          href={next ? `/sign-up?next=${encodeURIComponent(next)}` : "/sign-up"}
+          className="font-medium text-iris-600 hover:underline"
+        >
           Create one
         </a>
       </p>
     </main>
+  );
+}
+
+/** useSearchParams requires a Suspense boundary in the App Router. */
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }

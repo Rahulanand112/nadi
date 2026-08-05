@@ -152,6 +152,9 @@ model Invitation {
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
+  // One pending invitation per email per workspace. Re-inviting the same
+  // person replaces the old invite rather than accumulating duplicates.
+  @@unique([workspaceId, email])
   @@index([workspaceId])
   @@index([email])
   @@map("invitations")
