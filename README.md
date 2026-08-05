@@ -7,9 +7,9 @@ Nadi inverts that: an account is a household or a team, members live inside
 it, and every task, habit and statistic belongs to a member while remaining
 visible to the group.
 
-> **Status: v0.1.0-alpha.1 — under active development.**
-> Slice 1 of 8 complete. The application builds, deploys, and reads and writes
-> to Postgres through the service layer. Feature work begins at Slice 2.
+> **Status: v0.1.0 — feature complete.**
+> All eight slices shipped. Sign up, create a household or team, invite members
+> by link, assign tasks, and see them on a shared board or calendar.
 
 ---
 
@@ -58,6 +58,18 @@ can't silently go stale the moment its deadline passes. "My tasks" vs
 "Everyone" and the filter chips both run against the same live data; the
 counts on each chip aren't cached, they're the real result of filtering the
 task list currently on screen.
+
+**Slices 6–8 — calendar, dark mode, and the v0.1 release.**
+
+![Nadi Slice 6 — month calendar in dark mode with today highlighted and a completed task marked](screenshots/slice6-calendar.png)
+
+The calendar reuses the same `dueAt` field tasks already had — no new data
+model, just a different read of it (`src/lib/calendar.ts`, pure date math, no
+dependency). Dark mode is applied by an inline script that runs before first
+paint, so there's no flash of the wrong theme on load. Slice 8 added error
+boundaries, a proper not-found page for bad or unauthorized workspace URLs,
+and [`SECURITY.md`](SECURITY.md), which documents the authorization rules and
+the gaps still open at this version rather than leaving them implicit.
 
 ---
 
@@ -129,7 +141,7 @@ first would have delayed a testable product by weeks. See
 
 ## Roadmap
 
-**v0.1 — core platform** (in progress)
+**v0.1 — core platform** (shipped)
 
 | Slice | Scope | State |
 | :---: | ----- | ----- |
@@ -138,9 +150,9 @@ first would have delayed a testable product by weeks. See
 | 3 | Members, invitations, workspace switching | Complete |
 | 4 | Task CRUD, assignment, status logic | Complete |
 | 5 | Personal and shared dashboards | Complete |
-| 6 | Calendar — month and week views | Next |
-| 7 | Dark mode, responsiveness, motion | Planned |
-| 8 | Hardening and release | Planned |
+| 6 | Calendar — month and week views | Complete |
+| 7 | Dark mode, responsiveness, motion | Complete |
+| 8 | Hardening and release | Complete |
 
 **Beyond v0.1**
 
@@ -184,6 +196,29 @@ changes.
 
 `GET /api/health` returns database connectivity as JSON. The home page renders
 the same check for humans.
+
+---
+
+## What v0.1 actually does
+
+- **Accounts and workspaces.** Sign up, and a household or team is created with
+  you as its owner. One person can belong to several, switching between them
+  from the header.
+- **Invitations.** Owners generate a link; anyone who opens it can sign up and
+  join. Links expire after seven days, are single use, and can be revoked.
+- **Tasks.** Title, notes, category, priority, due date and time, assigned to
+  any member. Tick to complete.
+- **Status that can't go stale.** Green, amber and red are computed from
+  `completedAt` and `dueAt` on every read rather than stored — a task turns
+  overdue on its own, with no background job.
+- **Two ways to look at the same work.** A filterable, searchable list
+  ("My tasks" or "Everyone"), and a month/week calendar with tasks on their
+  due dates.
+- **Dark mode** with no flash on load, and a layout that works down to phone
+  width.
+
+Security posture, authorization rules, and the known gaps at this version are
+documented in [`SECURITY.md`](SECURITY.md).
 
 ---
 

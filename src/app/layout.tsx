@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Public_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { ThemeScript } from "@/components/features/theme/theme-script";
 
 const fraunces = Fraunces({
   subsets: ["latin"],
@@ -43,8 +44,12 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${fraunces.variable} ${publicSans.variable} ${jetbrainsMono.variable}`}
     >
+      <head>
+        <ThemeScript />
+      </head>
       <body className="min-h-dvh">{children}</body>
     </html>
   );
