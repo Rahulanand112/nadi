@@ -2,56 +2,78 @@ import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { requireWorkspaceAccess } from "@/server/services/workspace.service";
 import { membershipService } from "@/server/services/invitation.service";
+import { taskService } from "@/server/services/task.service";
+import { deriveStatus } from "@/lib/task-status";
+import { TaskBoard } from "@/components/features/tasks/task-board";
+import type { TaskDTO } from "@/types/task";
 
 export default async function WorkspaceDashboardPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ scope?: string }>;
 }) {
   const session = await auth.api.getSession({ headers: await headers() });
   const { slug } = await params;
-  // Access already verified by the layout; this re-read is cheap and keeps
-  // the page independently correct rather than relying on layout order.
+  const { scope: scopeParam } = await searchParams;
+  const scope = scopeParam === "everyone" ? "everyone" : "mine";
+
   const { workspace, membership } = await requireWorkspaceAccess(slug, session!.user.id);
-  const members = await membershipService.list({
-    workspaceId: workspace.id,
-    userId: session!.user.id,
-  });
+
+  const [members, tasks] = await Promise.all([
+    membershipService.list({ workspaceId: workspace.id, userId: session!.user.id }),
+    taskService.list({ workspaceId: workspace.id, userId: session!.user.id, scope }),
+  ]);
+
+  const dto: TaskDTO[] = tasks.map((task) => ({
+    id: task.id,
+    title: task.title,
+    description: task.description,
+    category: task.category,
+    priority: task.priority,
+    dueAt: task.dueAt?.toISOString() ?? null,
+    isAllDay: task.isAllDay,
+    completedAt: task.completedAt?.toISOString() ?? null,
+    assignee: task.assignee ?? null,
+    createdBy: task.createdBy,
+  }));
+
+  const open = dto.filter((task) => deriveStatus(task) !== "done").length;
+  const overdue = dto.filter((task) => deriveStatus(task) === "overdue").length;
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-12">
-      <p className="font-mono text-xs uppercase tracking-widest text-ink-400">
-        Nadi &middot; v0.1.0-alpha.1 &middot; Slice 3
-      </p>
-      <h1 className="mt-3 font-display text-3xl text-ink-900 dark:text-paper-50">
-        {workspace.name}
-      </h1>
-      <p className="mt-2 text-sm text-ink-600 dark:text-ink-400">
-        You&rsquo;re here as &ldquo;{membership.displayName}&rdquo;
-        {membership.role === "OWNER" ? ", the owner" : ""}.
-      </p>
-
-      <section className="mt-10 rounded-card border border-paper-200 bg-paper-0 p-6 dark:border-ink-800 dark:bg-ink-900">
-        <p className="text-xs uppercase tracking-widest text-ink-400">
-          {members.length === 1 ? "1 member" : `${members.length} members`}
+    <main className="mx-auto max-w-2xl px-6 py-10 pb-28">
+      <div className="flex items-baseline justify-between gap-4">
+        <h1 className="font-display text-3xl text-ink-900 dark:text-paper-50">
+          {scope === "mine" ? "Your day" : workspace.name}
+        </h1>
+        <p className="shrink-0 text-sm text-ink-400">
+          <span data-numeric>{open}</span> open
+          {overdue > 0 ? (
+            <>
+              {" · "}
+              <span className="text-status-overdue">
+                <span data-numeric>{overdue}</span> overdue
+              </span>
+            </>
+          ) : null}
         </p>
-        <ul className="mt-4 space-y-3">
-          {members.map((member) => (
-            <li key={member.id} className="flex items-center justify-between">
-              <span className="text-sm text-ink-900 dark:text-paper-100">
-                {member.displayName}
-              </span>
-              <span className="font-mono text-xs uppercase tracking-wider text-ink-400">
-                {member.role.toLowerCase()}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
+      </div>
 
-      <p className="mt-6 text-sm text-ink-400">
-        Tasks and the shared calendar arrive in Slices 4 and 6.
+      <p className="mt-1 text-sm text-ink-600 dark:text-ink-400">
+        {scope === "mine"
+          ? `Signed in as ${membership.displayName}`
+          : `${members.length} ${members.length === 1 ? "member" : "members"} in this workspace`}
       </p>
+
+      <TaskBoard
+        slug={slug}
+        tasks={dto}
+        members={members.map((m) => ({ id: m.id, displayName: m.displayName }))}
+        myMembershipId={membership.id}
+        initialScope={scope}
+      />
     </main>
   );
 }
