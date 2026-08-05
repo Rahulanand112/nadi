@@ -37,6 +37,21 @@ export default async function Home() {
         chain is proven before a single feature is built on top of it.
       </p>
 
+      <div className="mt-6 flex gap-3">
+        <a
+          href="/sign-up"
+          className="rounded-lg bg-iris-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-iris-700"
+        >
+          Create an account
+        </a>
+        <a
+          href="/login"
+          className="rounded-lg border border-paper-300 px-4 py-2 text-sm font-medium text-ink-800 transition hover:bg-paper-100 dark:border-ink-800 dark:text-paper-200 dark:hover:bg-ink-900"
+        >
+          Sign in
+        </a>
+      </div>
+
       <section
         aria-label="System check"
         className="mt-10 rounded-card border border-paper-200 bg-paper-0 p-6 dark:border-ink-800 dark:bg-ink-900"

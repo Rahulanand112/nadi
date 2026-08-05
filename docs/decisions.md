@@ -83,6 +83,50 @@ expensive to remove.
 
 ---
 
+## ADR 005 — Authentication and multi-tenancy are separate concerns
+
+**Date:** August 2026
+**Status:** Accepted
+
+### Context
+
+Better Auth ships an "organization" plugin that provides multi-tenant groups,
+membership roles, and invitations out of the box. Adopting it would remove the
+need to design and build `Workspace`, `Membership`, and `Invitation` ourselves.
+
+### Decision
+
+Better Auth is used for authentication only: identity, sessions, sign-up, and
+sign-in. The `Workspace` and `Membership` models are Nadi's own, defined in
+`prisma/schema.prisma` and owned by `src/server/services/workspace.service.ts`,
+independent of the auth library.
+
+### Rationale
+
+The multi-member household/team model is the product's core differentiator,
+not an incidental feature. Adopting a generic library's organization primitive
+means every future decision about it — per-member privacy, shared versus
+personal task visibility, leaderboard scoping, a member existing without a
+login of their own (a young child, for instance) — has to fit that library's
+assumptions rather than the product's actual shape.
+
+A concrete naming collision reinforced this: Better Auth's own schema already
+defines a model called `Account`, meaning "a linked OAuth or credential
+provider" — unrelated to what the product spec calls an "account" (a
+household or team). Keeping the tenant model separate and naming it
+`Workspace` avoids two unrelated concepts sharing one name in the same schema.
+
+### Cost
+
+Membership, roles, and invitations are built and maintained by hand rather than
+inherited from a library — roughly the service and two models in
+`workspace.service.ts` and `workspace.repository.ts`, plus the `Invitation`
+model added ahead of Slice 3. Accepted because the alternative cost —
+retrofitting per-member semantics the product actually needs into a generic
+plugin's shape — is larger and arrives later, when more code depends on it.
+
+---
+
 ## ADR 003 — PostgreSQL over a document database
 
 **Date:** August 2026

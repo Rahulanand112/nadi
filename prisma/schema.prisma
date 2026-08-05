@@ -23,3 +23,136 @@ model HealthCheck {
 
   @@map("health_checks")
 }
+
+model User {
+  id            String    @id
+  name          String
+  email         String
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  memberships   Membership[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ---------------------------------------------------------------------------
+// Slice 2 domain models.
+//
+// Everything above this line came from Better Auth and answers "who is this
+// person, and are they signed in". Everything below is Nadi's own domain:
+// households and teams (Workspace), who belongs to them and in what capacity
+// (Membership), and pending invitations.
+//
+// Deliberately NOT using Better Auth's "organization" plugin -- see
+// docs/decisions.md (ADR 005) for why these stay separate from auth.
+// ---------------------------------------------------------------------------
+
+enum MembershipRole {
+  OWNER
+  MEMBER
+}
+
+model Workspace {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships Membership[]
+  invitations Invitation[]
+
+  @@map("workspaces")
+}
+
+/// The join between a person and a household/team. A user can hold a
+/// Membership in more than one Workspace (e.g. "Family" and "Office"), each
+/// with its own role and its own display name -- someone might be "Dad" in
+/// one and "R. Sharma" in the other.
+model Membership {
+  id          String         @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        MembershipRole @default(MEMBER)
+  displayName String
+  createdAt   DateTime       @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+  @@map("memberships")
+}
+
+/// A pending invite to join a Workspace, sent to an email address that may
+/// not yet have a Nadi account. Consumed (and deleted) once accepted.
+model Invitation {
+  id          String         @id @default(cuid())
+  workspaceId String
+  email       String
+  role        MembershipRole @default(MEMBER)
+  token       String         @unique
+  invitedBy   String
+  expiresAt   DateTime
+  createdAt   DateTime       @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([email])
+  @@map("invitations")
+}

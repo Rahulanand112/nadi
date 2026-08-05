@@ -28,6 +28,16 @@ before any feature is built on top of it.
 More screenshots land here as each slice ships — see the roadmap below for
 what's next.
 
+**Slice 2 — sign up, get a workspace, stay signed in.**
+
+![Nadi Slice 2 — dashboard showing a signed-in owner and their workspace](screenshots/slice2-dashboard.png)
+
+Signing up does two things atomically: creates the account (via Better Auth)
+and creates the workspace the account owns (via Nadi's own service layer, kept
+deliberately separate — see ADR 005). This screenshot is a real session against
+the live database, not a mock: the name, the workspace, and the "owner" role
+are all rows that were written moments earlier by the sign-up form.
+
 ---
 
 ## Why this repository looks the way it does
@@ -103,8 +113,8 @@ first would have delayed a testable product by weeks. See
 | Slice | Scope | State |
 | :---: | ----- | ----- |
 | 1 | Foundation, deploy pipeline, service-layer boundary | Complete |
-| 2 | Database schema and authentication | In progress |
-| 3 | Members, invitations, account switching | Planned |
+| 2 | Database schema and authentication | Complete |
+| 3 | Members, invitations, account switching | Next |
 | 4 | Task CRUD, assignment, status logic | Planned |
 | 5 | Personal and shared dashboards | Planned |
 | 6 | Calendar — month and week views | Planned |
