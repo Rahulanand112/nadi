@@ -38,6 +38,16 @@ deliberately separate — see ADR 005). This screenshot is a real session agains
 the live database, not a mock: the name, the workspace, and the "owner" role
 are all rows that were written moments earlier by the sign-up form.
 
+**Slice 3 — inviting a second person, in real time.**
+
+![Nadi Slice 3 — two members in a shared workspace after accepting a real invite link](screenshots/slice3-members.png)
+
+This dashboard shows two members because an invite link was actually
+generated, opened in a separate incognito session, and accepted by a second
+real account — not seeded test data. The owner created the invite from the
+Members page; the invited account joined through `/invite/[token]`; both
+memberships now read from the same `Workspace` row.
+
 ---
 
 ## Why this repository looks the way it does
