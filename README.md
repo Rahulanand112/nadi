@@ -156,11 +156,31 @@ first would have delayed a testable product by weeks. See
 
 **Beyond v0.1**
 
-- **v0.2** — habit tracking with streaks, productivity scoring, leaderboards, search and filters
-- **v0.3** — reminders, smart rescheduling, scheduling-conflict detection, drag and drop
-- **v0.4** — natural-language and voice task creation, AI assistant over the user's own data
-- **v0.5** — proof-of-completion uploads, location-based reminders, push notifications
-- **v1.0** — test coverage, performance and security passes, documentation
+- **v0.2 — consistency and measurement.** Recurring tasks, habit tracking with
+  streaks and a contribution graph, productivity scoring, member leaderboards.
+- **v0.3 — scheduling and collaboration.** Reminders, smart rescheduling,
+  scheduling-conflict detection, drag and drop on the calendar, and comments on
+  tasks.
+- **v0.4 — AI.** Natural-language and voice task creation, and an assistant
+  that answers questions against the user's own tasks and schedule.
+- **v0.5 — premium.** Proof-of-completion uploads, push notifications,
+  real-time sync between members, location-based reminders (requires the native
+  client — see ADR 001).
+- **v1.0 — production.** Test coverage, performance and security passes,
+  documentation.
+
+Three additions were made to this roadmap after v0.1 shipped, each placed where
+it does the most work rather than where it was thought of:
+
+- **Recurring tasks** sit in v0.2 rather than v0.1 because a habit is a
+  recurring thing — building both against one recurrence model is cheaper than
+  building them twice, but only once the task model has settled in real use.
+- **Comments on tasks** sit in v0.3 because the shared-workspace model is the
+  product's actual differentiator, and a board people can talk on is a
+  different product from a board they can only read.
+- **Real-time sync** sits in v0.5 rather than earlier because it is a
+  performance and infrastructure change, not a feature — it should land on a
+  data model that has stopped moving.
 
 ---
 
