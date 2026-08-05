@@ -48,6 +48,17 @@ real account — not seeded test data. The owner created the invite from the
 Members page; the invited account joined through `/invite/[token]`; both
 memberships now read from the same `Workspace` row.
 
+**Slices 4 & 5 — tasks, with status derived rather than stored.**
+
+![Nadi Slice 4/5 — a completed task showing derived status, category, and due time](screenshots/slice4-5-tasks.png)
+
+Green, amber and red are never written to the database — they're computed at
+read time from `completedAt` and `dueAt` (`src/lib/task-status.ts`), so a task
+can't silently go stale the moment its deadline passes. "My tasks" vs
+"Everyone" and the filter chips both run against the same live data; the
+counts on each chip aren't cached, they're the real result of filtering the
+task list currently on screen.
+
 ---
 
 ## Why this repository looks the way it does
