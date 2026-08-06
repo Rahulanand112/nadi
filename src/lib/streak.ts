@@ -92,3 +92,51 @@ export function recentDays(count: number, today = new Date()): string[] {
   }
   return keys;
 }
+
+export type ContributionCell = {
+  key: string;
+  date: Date;
+  count: number;
+  /** 0–4, for colour intensity. */
+  level: number;
+};
+
+/**
+ * A GitHub-style grid: full weeks, oldest first, each column a week.
+ *
+ * Intensity is scaled against the busiest day in the window rather than a
+ * fixed threshold, so the graph stays readable whether someone tracks one
+ * habit or ten.
+ */
+export function buildContributionGrid(
+  countsByDay: Map<string, number>,
+  weeks = 26,
+  today = new Date(),
+): ContributionCell[][] {
+  const end = new Date(today);
+  end.setHours(0, 0, 0, 0);
+  // Wind back to the most recent Sunday so every column is a full week.
+  end.setDate(end.getDate() + (6 - ((end.getDay() + 6) % 7)));
+
+  const max = Math.max(1, ...countsByDay.values());
+
+  const columns: ContributionCell[][] = [];
+  for (let week = weeks - 1; week >= 0; week -= 1) {
+    const column: ContributionCell[] = [];
+    for (let day = 6; day >= 0; day -= 1) {
+      const date = new Date(end);
+      date.setDate(date.getDate() - (week * 7 + day));
+      const key = toDayKey(date);
+      const count = countsByDay.get(key) ?? 0;
+      column.push({
+        key,
+        date,
+        count,
+        level: count === 0 ? 0 : Math.min(4, Math.ceil((count / max) * 4)),
+      });
+    }
+    columns.push(column);
+  }
+
+  return columns;
+}

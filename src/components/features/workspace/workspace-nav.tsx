@@ -27,6 +27,7 @@ export function WorkspaceNav({
     { href: `/w/${currentSlug}/dashboard`, label: "Tasks" },
     { href: `/w/${currentSlug}/habits`, label: "Habits" },
     { href: `/w/${currentSlug}/calendar`, label: "Calendar" },
+    { href: `/w/${currentSlug}/insights`, label: "Insights" },
     ...(isOwner ? [{ href: `/w/${currentSlug}/members`, label: "Members" }] : []),
   ];
 

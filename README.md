@@ -7,10 +7,10 @@ Nadi inverts that: an account is a household or a team, members live inside
 it, and every task, habit and statistic belongs to a member while remaining
 visible to the group.
 
-> **Status: v0.2 in progress** — v0.1.0 shipped and tagged.
+> **Status: v0.2.0 — feature complete.**
 > v0.1 covers accounts, workspaces, invitations, tasks and the calendar. v0.2
-> adds recurring tasks, habit tracking and streaks (slices 1–3 done), with
-> the contribution graph, productivity score and leaderboard still to come.
+> adds recurring tasks, habit tracking with streaks and a contribution graph,
+> productivity scoring, and a workspace leaderboard.
 
 ---
 
@@ -177,9 +177,9 @@ first would have delayed a testable product by weeks. See
 
 **Beyond v0.1**
 
-- **v0.2 — consistency and measurement** *(in progress)*. Recurring tasks ✓,
-  habit tracking ✓, streaks ✓, contribution graph, productivity scoring,
-  member leaderboards.
+- **v0.2 — consistency and measurement** *(shipped)*. Recurring tasks, habit
+  tracking, streaks, contribution graph, productivity scoring, member
+  leaderboards.
 - **v0.3 — scheduling and collaboration.** Reminders, smart rescheduling,
   scheduling-conflict detection, drag and drop on the calendar, and comments on
   tasks.

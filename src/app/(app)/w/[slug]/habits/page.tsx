@@ -5,6 +5,7 @@ import { membershipService } from "@/server/services/invitation.service";
 import { habitService } from "@/server/services/habit.service";
 import { toDayKey } from "@/lib/streak";
 import { HabitBoard } from "@/components/features/habits/habit-board";
+import { ContributionGraph } from "@/components/features/habits/contribution-graph";
 import type { HabitDTO } from "@/types/habit";
 
 export default async function HabitsPage({
@@ -60,6 +61,20 @@ export default async function HabitsPage({
       <p className="mt-1 text-sm text-ink-600 dark:text-ink-400">
         {scope === "mine" ? membership.displayName : workspace.name}
       </p>
+
+      {dto.length > 0 ? (
+        <div className="mt-6">
+          <ContributionGraph
+            counts={[
+              ...dto
+                .flatMap((habit) => habit.completedDays)
+                .reduce((map, day) => map.set(day, (map.get(day) ?? 0) + 1), new Map<string, number>())
+                .entries(),
+            ]}
+            weeks={20}
+          />
+        </div>
+      ) : null}
 
       <HabitBoard
         slug={slug}
