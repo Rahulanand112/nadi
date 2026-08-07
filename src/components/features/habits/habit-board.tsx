@@ -4,9 +4,17 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { HabitDTO } from "@/types/habit";
 import type { MemberOption } from "@/types/task";
+import {
+  DEFAULT_REMINDER_OFFSET_MINUTES,
+  REMINDER_OFFSETS,
+  timeStringToMinutes,
+} from "@/lib/reminder";
 import { HabitRow } from "./habit-row";
 
 const SUGGESTED_ICONS = ["💪", "💧", "📖", "🧘", "🏃", "🥗", "😴", "✍️"];
+
+const fieldClass =
+  "w-full rounded-lg border border-paper-300 bg-paper-0 px-3 py-2 text-sm dark:border-ink-800 dark:bg-ink-950 dark:text-paper-100";
 
 export function HabitBoard({
   slug,
@@ -28,7 +36,17 @@ export function HabitBoard({
   const [icon, setIcon] = useState("");
   const [target, setTarget] = useState(7);
   const [membershipId, setMembershipId] = useState(myMembershipId);
+  const [remindAt, setRemindAt] = useState("");
+  const [reminderEnabled, setReminderEnabled] = useState(false);
+  const [reminderOffset, setReminderOffset] = useState<number>(
+    DEFAULT_REMINDER_OFFSET_MINUTES,
+  );
   const [isSaving, setSaving] = useState(false);
+
+  // Unlike a task, a habit carries no moment of its own — "morning run" is a
+  // wall-clock intention, not a deadline. Until a time of day exists there is
+  // nothing to remind against, so the toggle stays disabled.
+  const canRemind = Boolean(remindAt);
 
   async function toggle(habitId: string, day: string, done: boolean) {
     const response = await fetch(`/api/habits/${habitId}/completions`, {
@@ -37,6 +55,16 @@ export function HabitBoard({
       body: JSON.stringify({ day, done }),
     });
     if (!response.ok) throw new Error("toggle failed");
+  }
+
+  function resetForm() {
+    setName("");
+    setIcon("");
+    setTarget(7);
+    setRemindAt("");
+    setReminderEnabled(false);
+    setReminderOffset(DEFAULT_REMINDER_OFFSET_MINUTES);
+    setCreating(false);
   }
 
   async function create(event: React.FormEvent) {
@@ -52,15 +80,15 @@ export function HabitBoard({
         icon: icon || null,
         targetPerWeek: target,
         membershipId,
+        remindAtMinutes: remindAt ? timeStringToMinutes(remindAt) : null,
+        reminderEnabled: canRemind && reminderEnabled,
+        reminderOffsetMinutes: reminderOffset,
       }),
     });
 
     setSaving(false);
     if (response.ok) {
-      setName("");
-      setIcon("");
-      setTarget(7);
-      setCreating(false);
+      resetForm();
       startTransition(() => router.refresh());
     }
   }
@@ -122,7 +150,7 @@ export function HabitBoard({
               <select
                 value={target}
                 onChange={(e) => setTarget(Number(e.target.value))}
-                className="w-full rounded-lg border border-paper-300 bg-paper-0 px-3 py-2 text-sm dark:border-ink-800 dark:bg-ink-950 dark:text-paper-100"
+                className={fieldClass}
               >
                 {[7, 6, 5, 4, 3, 2, 1].map((value) => (
                   <option key={value} value={value}>
@@ -137,7 +165,7 @@ export function HabitBoard({
               <select
                 value={membershipId}
                 onChange={(e) => setMembershipId(e.target.value)}
-                className="w-full rounded-lg border border-paper-300 bg-paper-0 px-3 py-2 text-sm dark:border-ink-800 dark:bg-ink-950 dark:text-paper-100"
+                className={fieldClass}
               >
                 {members.map((member) => (
                   <option key={member.id} value={member.id}>
@@ -148,10 +176,63 @@ export function HabitBoard({
             </label>
           </div>
 
+          <div className="mt-3 rounded-lg border border-paper-200 px-3 py-2.5 dark:border-ink-800">
+            <label className="block">
+              <span className="mb-1 block text-xs text-ink-400">
+                Time of day (optional)
+              </span>
+              <input
+                type="time"
+                value={remindAt}
+                onChange={(e) => {
+                  setRemindAt(e.target.value);
+                  if (!e.target.value) setReminderEnabled(false);
+                }}
+                className={fieldClass}
+              />
+            </label>
+
+            <div className="mt-2.5 flex items-center justify-between gap-3">
+              <label
+                htmlFor="habit-reminder"
+                className={`flex-1 text-sm ${
+                  canRemind ? "text-ink-800 dark:text-paper-200" : "text-ink-400"
+                }`}
+                title={canRemind ? undefined : "Set a time of day first"}
+              >
+                Remind me
+              </label>
+
+              <input
+                id="habit-reminder"
+                type="checkbox"
+                checked={canRemind && reminderEnabled}
+                disabled={!canRemind}
+                onChange={(e) => setReminderEnabled(e.target.checked)}
+                className="size-4 accent-iris-600 disabled:opacity-40"
+              />
+            </div>
+
+            {canRemind && reminderEnabled ? (
+              <select
+                value={reminderOffset}
+                onChange={(e) => setReminderOffset(Number(e.target.value))}
+                aria-label="How long before the time of day"
+                className={`${fieldClass} mt-2.5`}
+              >
+                {REMINDER_OFFSETS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+          </div>
+
           <div className="mt-3 flex justify-end gap-2">
             <button
               type="button"
-              onClick={() => setCreating(false)}
+              onClick={resetForm}
               className="rounded-lg px-3 py-2 text-sm text-ink-600 hover:bg-paper-100 dark:text-ink-400 dark:hover:bg-ink-800"
             >
               Cancel

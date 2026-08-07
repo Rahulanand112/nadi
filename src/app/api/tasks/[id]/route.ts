@@ -13,6 +13,8 @@ const updateTaskSchema = z.object({
   isAllDay: z.boolean().optional(),
   assigneeId: z.string().nullish(),
   completed: z.boolean().optional(),
+  reminderEnabled: z.boolean().optional(),
+  reminderOffsetMinutes: z.number().int().min(1).max(10080).optional(),
 });
 
 export async function PATCH(

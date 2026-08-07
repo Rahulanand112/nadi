@@ -34,6 +34,8 @@ export default async function CalendarPage({
     isAllDay: task.isAllDay,
     completedAt: task.completedAt?.toISOString() ?? null,
     recurrence: task.recurrence,
+    reminderEnabled: task.reminderEnabled,
+    reminderOffsetMinutes: task.reminderOffsetMinutes,
     assignee: task.assignee ?? null,
     createdBy: task.createdBy,
   }));

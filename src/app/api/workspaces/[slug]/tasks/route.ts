@@ -14,6 +14,11 @@ const createTaskSchema = z.object({
   isAllDay: z.boolean().default(false),
   assigneeId: z.string().nullish(),
   recurrence: z.enum(["DAILY", "WEEKDAYS", "WEEKLY", "MONTHLY"]).nullish(),
+  // Bounds only. Which specific offsets are allowed is a domain rule, so it
+  // lives in the service via isReminderOffset rather than being duplicated
+  // here where it would drift out of step with the option list.
+  reminderEnabled: z.boolean().default(false),
+  reminderOffsetMinutes: z.number().int().min(1).max(10080).optional(),
 });
 
 export async function POST(
@@ -48,6 +53,8 @@ export async function POST(
       isAllDay: parsed.data.isAllDay,
       assigneeId: parsed.data.assigneeId,
       recurrence: parsed.data.recurrence,
+      reminderEnabled: parsed.data.reminderEnabled,
+      reminderOffsetMinutes: parsed.data.reminderOffsetMinutes,
     });
 
     return NextResponse.json(task, { status: 201 });

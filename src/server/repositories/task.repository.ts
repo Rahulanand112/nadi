@@ -36,6 +36,8 @@ export const taskRepository = {
     createdById: string;
     recurrence?: RecurrenceFrequency | null;
     seriesId?: string | null;
+    reminderEnabled?: boolean;
+    reminderOffsetMinutes?: number;
   }) {
     return db.task.create({ data, include: withPeople });
   },
@@ -46,5 +48,17 @@ export const taskRepository = {
 
   delete(id: string) {
     return db.task.delete({ where: { id } });
+  },
+
+  /**
+   * Removes the reminder attached to a task, if there is one.
+   *
+   * Needed because a reminder's identity is "one per task": if a deadline
+   * moves, the already-written reminder would block a new one from ever being
+   * created, and the person would silently get no reminder for the new time.
+   * Clearing it lets the sweep write a fresh one.
+   */
+  clearReminder(taskId: string) {
+    return db.reminder.deleteMany({ where: { taskId } });
   },
 };

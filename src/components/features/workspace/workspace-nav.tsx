@@ -4,6 +4,7 @@ import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "@/lib/auth-client";
 import { ThemeToggle } from "@/components/features/theme/theme-toggle";
+import { ReminderBell } from "@/components/features/reminders/reminder-bell";
 
 type WorkspaceOption = { slug: string; name: string };
 
@@ -102,6 +103,8 @@ export function WorkspaceNav({
               </a>
             );
           })}
+
+          <ReminderBell slug={currentSlug} />
 
           <ThemeToggle />
 

@@ -32,6 +32,9 @@ export default async function HabitsPage({
     name: habit.name,
     icon: habit.icon,
     targetPerWeek: habit.targetPerWeek,
+    remindAtMinutes: habit.remindAtMinutes,
+    reminderEnabled: habit.reminderEnabled,
+    reminderOffsetMinutes: habit.reminderOffsetMinutes,
     membership: habit.membership,
     // The Date column is UTC midnight; formatting via toDayKey here would
     // shift it in negative-offset timezones, so read the UTC parts directly.

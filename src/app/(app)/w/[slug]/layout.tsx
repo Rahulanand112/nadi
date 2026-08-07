@@ -7,6 +7,8 @@ import {
 } from "@/server/services/workspace.service";
 import { AppError } from "@/server/errors";
 import { WorkspaceNav } from "@/components/features/workspace/workspace-nav";
+import { TimezoneSync } from "@/components/features/workspace/timezone-sync";
+import { userService } from "@/server/services/user.service";
 
 /**
  * Every page under /w/[slug] passes through here, so the membership check
@@ -36,10 +38,18 @@ export default async function WorkspaceLayout({
     throw error;
   }
 
-  const memberships = await workspaceService.listForUser(session.user.id);
+  const [memberships, timezone] = await Promise.all([
+    workspaceService.listForUser(session.user.id),
+    userService.getTimezone(session.user.id),
+  ]);
 
   return (
     <div className="min-h-dvh">
+      {/* Renders nothing; corrects the stored timezone if this device
+          disagrees with it. Placed in the layout so it runs on every page
+          rather than only wherever somebody remembered to add it. */}
+      <TimezoneSync current={timezone} />
+
       <WorkspaceNav
         currentSlug={workspace.slug}
         currentName={workspace.name}

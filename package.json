@@ -1,6 +1,6 @@
 {
   "name": "nadi",
-  "version": "0.2.0",
+  "version": "0.3.0-alpha.1",
   "description": "Shared task and habit tracking for families and small teams, built as a versioned SaaS product from an empty repo.",
   "private": true,
   "engines": {
@@ -21,6 +21,7 @@
   "dependencies": {
     "@prisma/client": "^6.5.0",
     "better-auth": "^1.6.26",
+    "inngest": "^3.19.0",
     "next": "^15.3.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

@@ -1,10 +1,9 @@
-// Slice 1 schema.
+// Nadi's data model.
 //
-// This is deliberately tiny. Its only job is to prove the full chain works:
-// browser -> Vercel -> service layer -> Prisma -> Postgres.
-//
-// The real domain model (accounts, memberships, tasks, categories) arrives in
-// Slice 2, where it gets designed properly rather than grown by accident.
+// Grown one version at a time rather than designed up front. Section comments
+// record which slice introduced what, and more importantly why a shape was
+// chosen, so a decision can be revisited later on its merits rather than
+// guessed at.
 
 generator client {
   provider = "prisma-client-js"
@@ -32,6 +31,20 @@ model User {
   image         String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+
+  /// IANA zone name ("Asia/Kolkata"), captured from the browser on sign-in.
+  ///
+  /// Needed because habit reminders are wall-clock times: "remind me at 7am"
+  /// means 7am where the person is, and nothing else in the system knows
+  /// where that is. Vercel runs on UTC and the database is in Singapore, so
+  /// without this a 7am reminder would fire at whatever 7am means to a server
+  /// the person has never thought about.
+  ///
+  /// Defaults to UTC rather than being nullable: every existing row needs a
+  /// value at migration time, and a wrong-but-known zone is easier to reason
+  /// about than a null that every caller must handle.
+  timezone      String    @default("UTC")
+
   sessions      Session[]
   accounts      Account[]
   memberships   Membership[]
@@ -116,6 +129,7 @@ model Workspace {
   invitations Invitation[]
   tasks       Task[]
   habits      Habit[]
+  reminders   Reminder[]
 
   @@map("workspaces")
 }
@@ -137,6 +151,7 @@ model Membership {
   assignedTasks Task[]    @relation("AssignedTasks")
   createdTasks  Task[]    @relation("CreatedTasks")
   habits        Habit[]
+  reminders     Reminder[]
 
   @@unique([workspaceId, userId])
   @@index([userId])
@@ -209,12 +224,24 @@ model Task {
   /// can be counted or cancelled as a unit later.
   seriesId           String?
 
+  // v0.3 — reminders.
+  //
+  // Only two columns, because a task already carries its own moment: dueAt is
+  // a real instant, so the reminder time is dueAt minus the offset and needs
+  // no separate column. Storing a computed fireAt would repeat the mistake
+  // this schema avoids with task status — it would go stale the moment
+  // somebody reschedules the task.
+  reminderEnabled       Boolean @default(false)
+  /// Minutes before dueAt. See REMINDER_OFFSETS in src/lib/reminder.ts.
+  reminderOffsetMinutes Int     @default(30)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   workspace Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   assignee  Membership? @relation("AssignedTasks", fields: [assigneeId], references: [id], onDelete: SetNull)
   createdBy Membership  @relation("CreatedTasks", fields: [createdById], references: [id], onDelete: Cascade)
+  reminder  Reminder?
 
   @@index([workspaceId, dueAt])
   @@index([assigneeId])
@@ -254,12 +281,30 @@ model Habit {
   /// consistency figure, not enforced.
   targetPerWeek Int    @default(7)
   archivedAt   DateTime?
+
+  // v0.3 — reminders.
+  //
+  // A habit needs an extra column that a task does not, because a habit has no
+  // instant of its own. "Morning run" happens at 7am, and 7am is a wall-clock
+  // reading rather than a point in time until it is paired with the owner's
+  // timezone (User.timezone). Storing minutes-from-midnight rather than a
+  // DateTime keeps that distinction visible in the schema: this is a time of
+  // day, not a moment, and it must never be read as one.
+  //
+  /// Minutes from local midnight — 420 is 07:00. Null means no time set,
+  /// which also means no reminder is possible.
+  remindAtMinutes       Int?
+  reminderEnabled       Boolean @default(false)
+  /// Minutes before remindAtMinutes. Same option list as tasks.
+  reminderOffsetMinutes Int     @default(30)
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   membership  Membership        @relation(fields: [membershipId], references: [id], onDelete: Cascade)
   completions HabitCompletion[]
+  reminders   Reminder[]
 
   @@index([workspaceId])
   @@index([membershipId])
@@ -280,4 +325,74 @@ model HabitCompletion {
   @@unique([habitId, day])
   @@index([habitId, day])
   @@map("habit_completions")
+}
+
+// ---------------------------------------------------------------------------
+// v0.3 — reminders.
+//
+// A Reminder is a notification that has already fired. It is not a schedule:
+// nothing here says when a future reminder should happen, because that is
+// derivable from the task or habit it belongs to. A background sweep runs
+// every few minutes, works out which reminders have come due since it last
+// looked, and writes rows here.
+//
+// Why a sweep rather than scheduling a delayed job per reminder at the moment
+// somebody ticks the toggle: tasks get rescheduled, completed, deleted, and
+// respawned by recurrence. Each of those would leave an in-flight job pointing
+// at a task that has moved, so every one of those paths would need matching
+// cancel-and-reschedule logic, and any path that forgot would fire a reminder
+// for a deadline that no longer exists. A sweep reads current state each time
+// and cannot go stale. The cost is precision — a reminder can land a few
+// minutes late — which for a household task list is not a real cost.
+//
+// Reminders point at a Membership rather than a User because that is how the
+// rest of the domain addresses people, and because the workspace boundary has
+// to hold here too: a reminder must never surface in the wrong household.
+// ---------------------------------------------------------------------------
+
+model Reminder {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  membershipId String
+
+  /// Exactly one of these is set. Kept as two nullable columns rather than a
+  /// polymorphic id + type pair so the foreign keys stay real and deleting a
+  /// task takes its reminder with it.
+  taskId       String?
+  habitId      String?
+
+  /// The local day a habit reminder belongs to. Null for tasks, which are
+  /// one-off and identified by taskId alone. This is what makes "one reminder
+  /// per habit per day" expressible as a constraint instead of a query.
+  day          DateTime? @db.Date
+
+  /// Copied at write time rather than joined at read time. A reminder is a
+  /// record of something that was true at a moment; if the task is later
+  /// renamed or deleted, the notification the person received should not
+  /// silently change wording or vanish.
+  title        String
+  body         String?
+
+  /// When this was due — not when the row was written. The sweep runs on a
+  /// cadence, so createdAt is a few minutes later and is the wrong thing to
+  /// show or sort by.
+  fireAt       DateTime
+  /// Null until the person has seen it.
+  readAt       DateTime?
+  createdAt    DateTime  @default(now())
+
+  workspace  Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  task       Task?      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  habit      Habit?     @relation(fields: [habitId], references: [id], onDelete: Cascade)
+
+  // The database, not the sweep, guarantees no duplicates. Two overlapping
+  // runs would otherwise both see the same due reminder and write it twice;
+  // Postgres allows many nulls in a unique index, so these two constraints
+  // coexist without either blocking the other's kind of row.
+  @@unique([taskId])
+  @@unique([habitId, day])
+  @@index([membershipId, readAt])
+  @@index([fireAt])
+  @@map("reminders")
 }

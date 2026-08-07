@@ -38,11 +38,25 @@ export const habitRepository = {
     name: string;
     icon?: string | null;
     targetPerWeek: number;
+    remindAtMinutes?: number | null;
+    reminderEnabled?: boolean;
+    reminderOffsetMinutes?: number;
   }) {
     return db.habit.create({ data });
   },
 
-  update(id: string, data: { name?: string; icon?: string | null; targetPerWeek?: number; archivedAt?: Date | null }) {
+  update(
+    id: string,
+    data: {
+      name?: string;
+      icon?: string | null;
+      targetPerWeek?: number;
+      archivedAt?: Date | null;
+      remindAtMinutes?: number | null;
+      reminderEnabled?: boolean;
+      reminderOffsetMinutes?: number;
+    },
+  ) {
     return db.habit.update({ where: { id }, data });
   },
 

@@ -1,3 +1,7 @@
+import {
+  DEFAULT_REMINDER_OFFSET_MINUTES,
+  isReminderOffset,
+} from "@/lib/reminder";
 import { habitRepository } from "@/server/repositories/habit.repository";
 import { workspaceRepository, membershipRepository } from "@/server/repositories/workspace.repository";
 import { ValidationError, ForbiddenError, NotFoundError } from "@/server/errors";
@@ -30,6 +34,9 @@ export const habitService = {
     icon?: string | null;
     targetPerWeek: number;
     membershipId?: string;
+    remindAtMinutes?: number | null;
+    reminderEnabled?: boolean;
+    reminderOffsetMinutes?: number;
   }) {
     const membership = await workspaceRepository.findMembership(input.workspaceId, input.userId);
     if (!membership) throw new ForbiddenError("You are not a member of this workspace.");
@@ -57,7 +64,22 @@ export const habitService = {
       name,
       icon: input.icon?.trim() || null,
       targetPerWeek: input.targetPerWeek,
+      ...normaliseReminder(input),
     });
+  },
+
+  /** Changes the reminder on an existing habit. Separate from create because
+   * a habit is long-lived: the time you want reminding shifts as your routine
+   * does, and rebuilding the habit would lose its streak. */
+  async setReminder(input: {
+    habitId: string;
+    userId: string;
+    remindAtMinutes?: number | null;
+    reminderEnabled?: boolean;
+    reminderOffsetMinutes?: number;
+  }) {
+    const habit = await this.assertAccess(input.habitId, input.userId);
+    return habitRepository.update(habit.id, normaliseReminder(input));
   },
 
   async toggleDay(input: { habitId: string; userId: string; dayKey: string; done: boolean }) {
@@ -96,3 +118,40 @@ export const habitService = {
     return habit;
   },
 };
+
+/**
+ * Settles the three reminder columns for a habit.
+ *
+ * A habit, unlike a task, has no moment of its own — so a reminder on one is
+ * impossible until a time of day exists to anchor it. Switching the reminder
+ * off when there is no time set, rather than storing it as an intention,
+ * follows the same rule the whole schema uses: never persist a setting the
+ * system can never act on, because the person will believe it is working.
+ */
+function normaliseReminder(input: {
+  remindAtMinutes?: number | null;
+  reminderEnabled?: boolean;
+  reminderOffsetMinutes?: number;
+}) {
+  const remindAtMinutes = input.remindAtMinutes ?? null;
+
+  if (
+    remindAtMinutes !== null &&
+    (!Number.isInteger(remindAtMinutes) ||
+      remindAtMinutes < 0 ||
+      remindAtMinutes > 1439)
+  ) {
+    throw new ValidationError("That isn't a valid time of day.");
+  }
+
+  const offset = input.reminderOffsetMinutes ?? DEFAULT_REMINDER_OFFSET_MINUTES;
+  if (!isReminderOffset(offset)) {
+    throw new ValidationError("That isn't a reminder option.");
+  }
+
+  return {
+    remindAtMinutes,
+    reminderEnabled: remindAtMinutes === null ? false : Boolean(input.reminderEnabled),
+    reminderOffsetMinutes: offset,
+  };
+}

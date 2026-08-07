@@ -13,6 +13,8 @@ export type TaskDTO = {
   isAllDay: boolean;
   completedAt: string | null;
   recurrence: "DAILY" | "WEEKDAYS" | "WEEKLY" | "MONTHLY" | null;
+  reminderEnabled: boolean;
+  reminderOffsetMinutes: number;
   assignee: TaskPerson;
   createdBy: { id: string; displayName: string };
 };

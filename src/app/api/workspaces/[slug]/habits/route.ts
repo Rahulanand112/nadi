@@ -10,6 +10,11 @@ const createHabitSchema = z.object({
   icon: z.string().max(8).nullish(),
   targetPerWeek: z.number().int().min(1).max(7).default(7),
   membershipId: z.string().nullish(),
+  /// Minutes from local midnight. 0 is valid (midnight), so nullish rather
+  /// than falsy checks are used throughout.
+  remindAtMinutes: z.number().int().min(0).max(1439).nullish(),
+  reminderEnabled: z.boolean().default(false),
+  reminderOffsetMinutes: z.number().int().min(1).max(10080).optional(),
 });
 
 export async function POST(
@@ -37,6 +42,9 @@ export async function POST(
       icon: parsed.data.icon,
       targetPerWeek: parsed.data.targetPerWeek,
       membershipId: parsed.data.membershipId ?? undefined,
+      remindAtMinutes: parsed.data.remindAtMinutes,
+      reminderEnabled: parsed.data.reminderEnabled,
+      reminderOffsetMinutes: parsed.data.reminderOffsetMinutes,
     });
 
     return NextResponse.json(habit, { status: 201 });
