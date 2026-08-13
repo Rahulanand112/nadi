@@ -36,6 +36,7 @@ export default async function CalendarPage({
     recurrence: task.recurrence,
     reminderEnabled: task.reminderEnabled,
     reminderOffsetMinutes: task.reminderOffsetMinutes,
+    commentCount: task._count.comments,
     assignee: task.assignee ?? null,
     createdBy: task.createdBy,
   }));

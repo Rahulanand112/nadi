@@ -9,6 +9,7 @@ import { AppError } from "@/server/errors";
 import { WorkspaceNav } from "@/components/features/workspace/workspace-nav";
 import { TimezoneSync } from "@/components/features/workspace/timezone-sync";
 import { userService } from "@/server/services/user.service";
+import { env } from "@/lib/env";
 
 /**
  * Every page under /w/[slug] passes through here, so the membership check
@@ -58,6 +59,7 @@ export default async function WorkspaceLayout({
           slug: m.workspace.slug,
           name: m.workspace.name,
         }))}
+        vapidPublicKey={env.NEXT_PUBLIC_VAPID_PUBLIC_KEY}
       />
       {children}
     </div>

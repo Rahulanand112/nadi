@@ -13,11 +13,17 @@ export function WorkspaceNav({
   currentName,
   isOwner,
   workspaces,
+  vapidPublicKey,
 }: {
   currentSlug: string;
   currentName: string;
   isOwner: boolean;
   workspaces: WorkspaceOption[];
+  /** Passed down from the server rather than read from process.env here:
+   * NEXT_PUBLIC_ variables are inlined at build time, and threading it
+   * through keeps the one place it is validated (src/lib/env.ts) authoritative
+   * instead of scattering raw env reads through client components. */
+  vapidPublicKey: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -104,7 +110,7 @@ export function WorkspaceNav({
             );
           })}
 
-          <ReminderBell slug={currentSlug} />
+          <ReminderBell slug={currentSlug} vapidPublicKey={vapidPublicKey} />
 
           <ThemeToggle />
 

@@ -48,6 +48,7 @@ model User {
   sessions      Session[]
   accounts      Account[]
   memberships   Membership[]
+  pushSubscriptions PushSubscription[]
 
   @@unique([email])
   @@map("user")
@@ -152,6 +153,7 @@ model Membership {
   createdTasks  Task[]    @relation("CreatedTasks")
   habits        Habit[]
   reminders     Reminder[]
+  comments      TaskComment[]
 
   @@unique([workspaceId, userId])
   @@index([userId])
@@ -242,6 +244,7 @@ model Task {
   assignee  Membership? @relation("AssignedTasks", fields: [assigneeId], references: [id], onDelete: SetNull)
   createdBy Membership  @relation("CreatedTasks", fields: [createdById], references: [id], onDelete: Cascade)
   reminder  Reminder?
+  comments  TaskComment[]
 
   @@index([workspaceId, dueAt])
   @@index([assigneeId])
@@ -379,6 +382,17 @@ model Reminder {
   fireAt       DateTime
   /// Null until the person has seen it.
   readAt       DateTime?
+
+  /// Null until a push notification has been sent for this reminder.
+  ///
+  /// Kept separate from the row's existence because creating the reminder and
+  /// delivering it are different failures with different fixes: a reminder
+  /// that exists but was never pushed should be retried, while one that was
+  /// pushed must never be pushed twice. Folding both into one row with no
+  /// delivery marker would mean either dropping pushes on a transient network
+  /// error or re-notifying somebody every five minutes forever.
+  pushedAt     DateTime?
+
   createdAt    DateTime  @default(now())
 
   workspace  Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -394,5 +408,89 @@ model Reminder {
   @@unique([habitId, day])
   @@index([membershipId, readAt])
   @@index([fireAt])
+  // Drives the delivery sweep, which asks for unpushed reminders only.
+  @@index([pushedAt])
   @@map("reminders")
+}
+
+// ---------------------------------------------------------------------------
+// v0.3 — web push.
+//
+// A PushSubscription is one browser on one device that has agreed to receive
+// notifications. Attached to a User rather than a Membership because a phone
+// belongs to a person, not to a household: somebody in both "Family" and
+// "Office" carries one phone and should not have to grant permission twice,
+// nor receive two copies of everything.
+//
+// The three fields the browser hands us (endpoint, p256dh, auth) are not ours
+// to interpret. The endpoint is a URL at the browser vendor's own push service
+// — Apple's for Safari, Google's for Chrome — and the two keys encrypt the
+// payload so that service can route a message it cannot read. Nadi stores them
+// verbatim and passes them back.
+// ---------------------------------------------------------------------------
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+
+  /// The vendor push service URL. Unique because it *is* the device's
+  /// identity: re-subscribing on the same browser returns the same endpoint,
+  /// so upserting on it keeps one row per device rather than accumulating a
+  /// new one on every visit.
+  endpoint  String   @unique
+  /// Public key and auth secret from the browser, used to encrypt payloads.
+  p256dh    String
+  auth      String
+
+  /// Recorded only to make a device list legible to a human later ("iPhone
+  /// Safari" vs "Windows Chrome"); never parsed for behaviour.
+  userAgent String?
+
+  createdAt  DateTime  @default(now())
+  /// Bumped on each successful send, so a device that has gone quiet is
+  /// visible rather than merely absent.
+  lastUsedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+// ---------------------------------------------------------------------------
+// v0.3 — comments on tasks.
+//
+// The point of a shared task list is coordination, and coordination is mostly
+// conversation: "I'll do this after work", "we're out of the stuff for this",
+// "already done, forgot to tick it". Without somewhere to put that, it happens
+// in a separate chat app and the task and the discussion about it live in
+// different places.
+//
+// Flat, not threaded. A household task rarely sustains a sub-argument, and
+// threading costs a parentId, recursive queries, and a rendering problem in
+// exchange for a structure nobody would use here.
+//
+// Authored by a Membership rather than a User, matching every other authored
+// thing in the schema. It also means a comment carries the display name the
+// person uses in *that* workspace — "Dad" at home, "R. Sharma" at work —
+// rather than leaking one context's name into the other.
+// ---------------------------------------------------------------------------
+
+model TaskComment {
+  id           String   @id @default(cuid())
+  taskId       String
+  membershipId String
+  body         String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  task       Task       @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  // Comments are always read as "all comments on this task, oldest first",
+  // so the index matches that access pattern rather than indexing taskId
+  // alone and sorting in memory.
+  @@index([taskId, createdAt])
+  @@map("task_comments")
 }

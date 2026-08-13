@@ -32,6 +32,23 @@ const envSchema = z
     INNGEST_EVENT_KEY: z.string().optional(),
     INNGEST_SIGNING_KEY: z.string().optional(),
 
+    // VAPID keypair for web push. The public half is deliberately
+    // NEXT_PUBLIC_: the browser needs it to create a subscription, and it is
+    // public by design — it only identifies Nadi as the sender. The private
+    // half signs push requests and must never reach the client, which is
+    // exactly why the two are named differently rather than being one
+    // "VAPID_KEYS" blob that could be leaked wholesale by one careless
+    // import.
+    //
+    // Optional in development for the same reason as the Inngest keys: local
+    // work that does not touch notifications should not be blocked on
+    // generating a keypair.
+    NEXT_PUBLIC_VAPID_PUBLIC_KEY: z.string().default(""),
+    VAPID_PRIVATE_KEY: z.string().default(""),
+    /// Required by the VAPID spec as a contact for the push service to reach
+    /// if Nadi starts misbehaving. Must be a mailto: or https: URL.
+    VAPID_SUBJECT: z.string().default("mailto:hello@nadi.app"),
+
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -45,6 +62,19 @@ const envSchema = z
           code: z.ZodIssueCode.custom,
           path: [key],
           message: `${key} is required in production — reminders cannot run without it`,
+        });
+      }
+    }
+
+    for (const key of [
+      "NEXT_PUBLIC_VAPID_PUBLIC_KEY",
+      "VAPID_PRIVATE_KEY",
+    ] as const) {
+      if (!value[key]) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [key],
+          message: `${key} is required in production — push notifications cannot be sent without it`,
         });
       }
     }

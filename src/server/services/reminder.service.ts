@@ -7,6 +7,7 @@ import {
   zonedDayTimeToUtc,
 } from "@/lib/reminder";
 import { reminderRepository } from "@/server/repositories/reminder.repository";
+import { pushService } from "@/server/services/push.service";
 import { workspaceRepository } from "@/server/repositories/workspace.repository";
 import { ForbiddenError, NotFoundError } from "@/server/errors";
 
@@ -16,6 +17,11 @@ const LIST_LIMIT = 30;
 
 const MINUTE_MS = 60_000;
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** How many reminders one delivery pass will push. A ceiling rather than a
+ * true limit: it caps how long a single serverless invocation can run, and
+ * anything left over is picked up by the next sweep five minutes later. */
+const DELIVERY_BATCH = 50;
 
 export const reminderService = {
   /**
@@ -42,6 +48,57 @@ export const reminderService = {
       created: result.count,
       at: now.toISOString(),
     };
+  },
+
+  /**
+   * Pushes reminders that have been created but not yet sent to a device.
+   *
+   * Split from `sweep` rather than folded into it, because creating a
+   * reminder and delivering it fail differently and should recover
+   * differently. Postgres being briefly unreachable and Apple's push service
+   * being briefly unreachable are unrelated events; bundling them would mean
+   * a push outage stops reminders being recorded at all, and the in-app bell
+   * would go silent too — losing the reliable channel to protect the
+   * unreliable one.
+   *
+   * Safe to run repeatedly. `pushedAt` is set once, so a reminder already
+   * delivered is never picked up again, and a crash mid-pass simply leaves
+   * the remainder for the next run.
+   */
+  async deliverPending(now: Date = new Date()) {
+    const since = new Date(now.getTime() - REMINDER_GRACE_MS);
+    const pending = await reminderRepository.findPendingPush(since, DELIVERY_BATCH);
+
+    if (pending.length === 0) {
+      return { pending: 0, sent: 0, pruned: 0 };
+    }
+
+    let sent = 0;
+    let pruned = 0;
+
+    for (const reminder of pending) {
+      const subscriptions = reminder.membership.user.pushSubscriptions;
+      if (subscriptions.length === 0) continue;
+
+      const result = await pushService.sendToSubscriptions(subscriptions, {
+        title: reminder.title,
+        body: reminder.body,
+        // Deep-links into the workspace the reminder belongs to. Without the
+        // slug the notification would open the app's root and make the person
+        // navigate to whatever they were just told about.
+        url: `/w/${reminder.membership.workspace.slug}/dashboard`,
+      });
+
+      sent += result.sent;
+      pruned += result.pruned;
+    }
+
+    // Every reminder in this pass is marked, including ones whose owner has
+    // no devices registered. They are not waiting on anything, and leaving
+    // them unmarked would make them permanent residents of this query.
+    await reminderRepository.markPushed(pending.map((reminder) => reminder.id));
+
+    return { pending: pending.length, sent, pruned };
   },
 
   async list(input: { workspaceId: string; userId: string }) {

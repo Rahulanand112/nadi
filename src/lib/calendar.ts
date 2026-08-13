@@ -124,3 +124,31 @@ export function groupByDay<T extends { dueAt: string | null }>(
 
   return map;
 }
+
+/**
+ * Moves a deadline onto a different day, keeping its time of day.
+ *
+ * Dragging a task to another date says nothing about when in that day it
+ * should happen, so "7am gym" dragged from Monday to Wednesday stays at 7am.
+ * Resetting to midnight — or to now — would silently discard the one piece of
+ * scheduling the person actually chose, and they would have to set it again
+ * every time they moved anything.
+ *
+ * All three fields are set in one call on purpose: setting the month alone on
+ * the 31st would roll into the following month before the day was corrected.
+ */
+export function moveToDay(dueAt: string | Date, targetKey: string): Date {
+  const original = dueAt instanceof Date ? dueAt : new Date(dueAt);
+
+  // Falling back to the original's own parts rather than asserting: a
+  // malformed key should leave the date untouched, not produce NaN and a
+  // task that vanishes from every view.
+  const parts = targetKey.split("-").map(Number);
+  const year = parts[0] ?? original.getFullYear();
+  const month = parts[1] ?? original.getMonth() + 1;
+  const day = parts[2] ?? original.getDate();
+
+  const moved = new Date(original);
+  moved.setFullYear(year, month - 1, day);
+  return moved;
+}

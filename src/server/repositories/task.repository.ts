@@ -4,6 +4,11 @@ import type { Prisma, TaskPriority, RecurrenceFrequency } from "@prisma/client";
 const withPeople = {
   assignee: { select: { id: true, displayName: true } },
   createdBy: { select: { id: true, displayName: true } },
+  // Counted rather than fetched: the board only needs to show "3" beside a
+  // task, and pulling every comment body for every task to arrive at a
+  // number would be a lot of text to move for a badge. The thread itself is
+  // loaded on demand when somebody opens the task.
+  _count: { select: { comments: true } },
 } satisfies Prisma.TaskInclude;
 
 export const taskRepository = {

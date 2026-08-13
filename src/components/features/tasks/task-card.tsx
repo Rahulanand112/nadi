@@ -9,14 +9,21 @@ const PRIORITY_LABEL = { HIGH: "High", MEDIUM: "Medium", LOW: "Low" } as const;
 export function TaskCard({
   task,
   showAssignee,
+  collisionCount,
   onToggle,
   onDelete,
+  onOpen,
   isPending,
 }: {
   task: TaskDTO;
   showAssignee: boolean;
+  /** How many other tasks clash with this one. Passed in rather than computed
+   * here because collisions are a property of the whole list, not of one
+   * card -- a card cannot see its neighbours. */
+  collisionCount: number;
   onToggle: (task: TaskDTO) => void;
   onDelete: (task: TaskDTO) => void;
+  onOpen: (task: TaskDTO) => void;
   isPending: boolean;
 }) {
   const status = deriveStatus(task);
@@ -53,12 +60,18 @@ export function TaskCard({
         ) : null}
       </button>
 
-      <div className="min-w-0 flex-1">
+      {/* The body opens the detail sheet; the checkbox and Delete stay
+          separate buttons so ticking something off never costs an extra tap
+          through a panel. That is the action people take most, and it should
+          stay the cheapest. */}
+      <button
+        onClick={() => onOpen(task)}
+        className="min-w-0 flex-1 text-left"
+        aria-label={`Open "${task.title}"`}
+      >
         <p
           className={`text-sm ${
-            isDone
-              ? "text-ink-400 line-through"
-              : "text-ink-900 dark:text-paper-100"
+            isDone ? "text-ink-400 line-through" : "text-ink-900 dark:text-paper-100"
           }`}
         >
           {task.title}
@@ -93,11 +106,26 @@ export function TaskCard({
             <span className="text-ink-400">↻ {recurrenceLabel(task.recurrence)}</span>
           ) : null}
 
+          {/* Clash warning. Deliberately quiet -- an outline chip rather than
+              a filled one, because two things at once is sometimes exactly
+              what somebody meant and this is a heads-up, not an error. */}
+          {collisionCount > 0 ? (
+            <span className="rounded-full border border-status-upcoming/40 px-2 py-0.5 text-status-upcoming">
+              Clashes with {collisionCount}
+            </span>
+          ) : null}
+
+          {task.commentCount > 0 ? (
+            <span className="text-ink-400" data-numeric>
+              💬 {task.commentCount}
+            </span>
+          ) : null}
+
           {showAssignee && task.assignee ? (
             <span className="text-ink-400">&middot; {task.assignee.displayName}</span>
           ) : null}
         </div>
-      </div>
+      </button>
 
       <button
         onClick={() => onDelete(task)}

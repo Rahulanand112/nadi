@@ -4,8 +4,10 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { deriveStatus, isToday } from "@/lib/task-status";
 import type { TaskDTO, MemberOption } from "@/types/task";
+import { findCollisions } from "@/lib/collision";
 import { TaskCard } from "./task-card";
 import { TaskForm } from "./task-form";
+import { TaskDetailSheet } from "./task-detail-sheet";
 
 type Scope = "mine" | "everyone";
 type Filter = "today" | "upcoming" | "overdue" | "done" | "all";
@@ -37,6 +39,18 @@ export function TaskBoard({
   const [query, setQuery] = useState("");
   const [isCreating, setCreating] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [openTaskId, setOpenTaskId] = useState<string | null>(null);
+
+  // Computed over every task, not just the visible ones: a task filtered out
+  // of the current view still occupies its owner's time, so hiding "Done"
+  // must not make a genuine clash disappear.
+  const collisions = useMemo(() => findCollisions(tasks), [tasks]);
+
+  // Resolved from the live list rather than held as state, so the sheet shows
+  // fresh data after a refresh instead of a stale snapshot from when it opened.
+  const openTask = openTaskId
+    ? (tasks.find((task) => task.id === openTaskId) ?? null)
+    : null;
 
   const counts = useMemo(() => {
     const base = { today: 0, upcoming: 0, overdue: 0, done: 0, all: tasks.length };
@@ -176,8 +190,10 @@ export function TaskBoard({
               key={task.id}
               task={task}
               showAssignee={initialScope === "everyone"}
+              collisionCount={collisions.get(task.id)?.length ?? 0}
               onToggle={toggle}
               onDelete={remove}
+              onOpen={(selected) => setOpenTaskId(selected.id)}
               isPending={busyId === task.id || isPending}
             />
           ))}
@@ -191,6 +207,15 @@ export function TaskBoard({
               : "No tasks here yet."}
         </p>
       )}
+
+      {openTask ? (
+        <TaskDetailSheet
+          task={openTask}
+          collisions={collisions.get(openTask.id) ?? []}
+          onClose={() => setOpenTaskId(null)}
+          onChanged={() => startTransition(() => router.refresh())}
+        />
+      ) : null}
 
       {!isCreating ? (
         <button

@@ -103,6 +103,57 @@ export const reminderRepository = {
     return db.reminder.createMany({ data: rows, skipDuplicates: true });
   },
 
+  /**
+   * Reminders that exist but have not been pushed yet.
+   *
+   * Joins all the way through to the owner's devices in one query: a reminder
+   * belongs to a Membership, a Membership belongs to a User, and push
+   * subscriptions belong to the User — because a phone belongs to a person,
+   * not to a household. Fetching them together avoids an N+1 where a sweep
+   * with twenty due reminders makes twenty extra round trips to Neon.
+   *
+   * Bounded by `since` so that a reminder which failed to send for hours is
+   * eventually abandoned rather than arriving at 3am, long after it was any
+   * use.
+   */
+  findPendingPush(since: Date, limit: number) {
+    return db.reminder.findMany({
+      where: { pushedAt: null, fireAt: { gte: since } },
+      orderBy: { fireAt: "asc" },
+      take: limit,
+      select: {
+        id: true,
+        title: true,
+        body: true,
+        workspaceId: true,
+        membership: {
+          select: {
+            workspace: { select: { slug: true } },
+            user: {
+              select: {
+                id: true,
+                pushSubscriptions: {
+                  select: { id: true, endpoint: true, p256dh: true, auth: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+  },
+
+  /** Marked whether or not a device was reachable. A reminder with no
+   * registered devices is not "pending forever" — it is delivered as far as
+   * this system is concerned, and the in-app bell still shows it. */
+  markPushed(ids: string[]) {
+    if (ids.length === 0) return Promise.resolve({ count: 0 });
+    return db.reminder.updateMany({
+      where: { id: { in: ids } },
+      data: { pushedAt: new Date() },
+    });
+  },
+
   listForMembership(membershipId: string, limit: number) {
     return db.reminder.findMany({
       where: { membershipId },

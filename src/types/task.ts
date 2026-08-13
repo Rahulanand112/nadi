@@ -15,6 +15,7 @@ export type TaskDTO = {
   recurrence: "DAILY" | "WEEKDAYS" | "WEEKLY" | "MONTHLY" | null;
   reminderEnabled: boolean;
   reminderOffsetMinutes: number;
+  commentCount: number;
   assignee: TaskPerson;
   createdBy: { id: string; displayName: string };
 };

@@ -2,7 +2,7 @@ import { inngest } from "./client";
 import { reminderService } from "@/server/services/reminder.service";
 
 /**
- * Fires due reminders.
+ * Fires due reminders, then delivers them.
  *
  * Runs on a cron rather than being scheduled per-reminder. The reasoning is in
  * the Reminder model's comment in schema.prisma, but briefly: tasks move, and
@@ -14,15 +14,25 @@ import { reminderService } from "@/server/services/reminder.service";
  * The cron expression is in UTC — that is fine here because nothing about the
  * sweep is tied to a wall-clock hour; it just asks "what is due now".
  *
- * step.run wraps the work so that if the sweep throws, Inngest retries only
- * this step rather than re-running the whole function, and the failure shows
- * up in the dashboard with its error attached rather than disappearing.
+ * Two steps rather than one. Inngest retries a failed step individually, so
+ * splitting them means a push outage retries only the delivery and leaves the
+ * already-recorded reminders alone — rather than re-running the whole
+ * function and doing the database work again for no reason. The in-app bell
+ * is served by step one, so it keeps working even while step two is failing.
  */
 export const sweepReminders = inngest.createFunction(
   { id: "sweep-reminders", name: "Sweep due reminders" },
   { cron: "*/5 * * * *" },
   async ({ step }) => {
-    return step.run("create-due-reminders", () => reminderService.sweep());
+    const created = await step.run("create-due-reminders", () =>
+      reminderService.sweep(),
+    );
+
+    const delivered = await step.run("deliver-push-notifications", () =>
+      reminderService.deliverPending(),
+    );
+
+    return { created, delivered };
   },
 );
 
@@ -38,7 +48,15 @@ export const sweepRemindersManually = inngest.createFunction(
   { id: "sweep-reminders-manual", name: "Sweep due reminders (manual)" },
   { event: "reminders/sweep.requested" },
   async ({ step }) => {
-    return step.run("create-due-reminders", () => reminderService.sweep());
+    const created = await step.run("create-due-reminders", () =>
+      reminderService.sweep(),
+    );
+
+    const delivered = await step.run("deliver-push-notifications", () =>
+      reminderService.deliverPending(),
+    );
+
+    return { created, delivered };
   },
 );
 

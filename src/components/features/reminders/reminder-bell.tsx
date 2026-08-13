@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { ReminderDTO, ReminderFeed } from "@/types/reminder";
+import { PushToggle } from "./push-toggle";
 
 /** How often the bell asks the server for new reminders.
  *
@@ -12,7 +13,13 @@ import type { ReminderDTO, ReminderFeed } from "@/types/reminder";
  * the slowest link in the chain. */
 const POLL_MS = 60_000;
 
-export function ReminderBell({ slug }: { slug: string }) {
+export function ReminderBell({
+  slug,
+  vapidPublicKey,
+}: {
+  slug: string;
+  vapidPublicKey: string;
+}) {
   const [feed, setFeed] = useState<ReminderFeed>({ reminders: [], unread: 0 });
   const [isOpen, setOpen] = useState(false);
 
@@ -91,6 +98,12 @@ export function ReminderBell({ slug }: { slug: string }) {
                 Nothing yet. Reminders show up here when they&rsquo;re due.
               </p>
             )}
+
+            {/* Lives inside the bell rather than a settings page, because
+                this is where somebody is when they notice reminders are only
+                appearing in-app. Renders nothing on browsers that cannot do
+                push at all. */}
+            {vapidPublicKey ? <PushToggle vapidPublicKey={vapidPublicKey} /> : null}
           </div>
         </>
       ) : null}
