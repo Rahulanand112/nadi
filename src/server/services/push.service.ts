@@ -37,11 +37,18 @@ type Subscription = {
   auth: string;
 };
 
-/** Push services return these when a subscription no longer exists — the
- * person uninstalled the app, cleared site data, or the browser rotated the
- * endpoint. They are not transient: retrying will never succeed, so the row
- * is deleted rather than kept and retried forever. */
-const GONE_STATUS_CODES = new Set([404, 410]);
+/** Status codes a push vendor returns when this subscription will never
+ * succeed again, so retrying is pointless and the row is deleted rather than
+ * kept and retried forever:
+ *  - 404/410: the subscription no longer exists — person uninstalled,
+ *    cleared site data, or the browser rotated the endpoint.
+ *  - 401/403: the request was rejected as unauthorized — for web push this
+ *    means the VAPID keypair doesn't match the one the subscription was
+ *    created under, which no amount of retrying fixes.
+ *  - 400: the vendor rejected the request outright, e.g. a WNS channel that
+ *    has gone stale without formally expiring to a 410.
+ * Anything else (timeouts, 5xx) is treated as transient and left alone. */
+const DEAD_STATUS_CODES = new Set([400, 401, 403, 404, 410]);
 
 export const pushService = {
   async listDeviceCount(userId: string) {
@@ -123,7 +130,7 @@ export const pushService = {
 
       const statusCode = (result.reason as { statusCode?: number })?.statusCode;
 
-      if (statusCode && GONE_STATUS_CODES.has(statusCode)) {
+      if (statusCode && DEAD_STATUS_CODES.has(statusCode)) {
         dead.push(subscription.id);
         return;
       }

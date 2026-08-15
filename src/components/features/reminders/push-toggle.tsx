@@ -5,6 +5,7 @@ import {
   getPermission,
   isPushSupported,
   needsInstallFirst,
+  subscriptionMatchesKey,
   urlBase64ToBuffer,
 } from "@/lib/push";
 import { isIos, isStandalone } from "@/lib/pwa";
@@ -34,6 +35,49 @@ type State =
  * is the kind of thing people deny reflexively — and a denial is close to
  * permanent, since the browser will not re-ask.
  */
+/**
+ * Drops the existing subscription and creates a new one under the current
+ * key, saving it and clearing the stale row server-side. Used when
+ * `subscriptionMatchesKey` finds the device's subscription was created under
+ * a VAPID key that is no longer the one configured on the server.
+ */
+async function resubscribeWithCurrentKey(
+  existing: PushSubscription,
+  vapidPublicKey: string,
+): Promise<PushSubscription> {
+  const oldEndpoint = existing.endpoint;
+  await existing.unsubscribe();
+
+  const registration = await navigator.serviceWorker.ready;
+  const fresh = await registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToBuffer(vapidPublicKey),
+  });
+
+  const response = await fetch("/api/push/subscribe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(fresh.toJSON()),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to save resubscribed device: ${response.status}`);
+  }
+
+  if (oldEndpoint !== fresh.endpoint) {
+    // Best-effort: an orphaned old row gets pruned by the next failed send
+    // anyway (DEAD_STATUS_CODES in push.service.ts), so a failure here isn't
+    // worth surfacing to the person.
+    await fetch("/api/push/unsubscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ endpoint: oldEndpoint }),
+    }).catch(() => {});
+  }
+
+  return fresh;
+}
+
 export function PushToggle({ vapidPublicKey }: { vapidPublicKey: string }) {
   const [state, setState] = useState<State>("loading");
 
@@ -60,11 +104,32 @@ export function PushToggle({ vapidPublicKey }: { vapidPublicKey: string }) {
     try {
       const registration = await navigator.serviceWorker.ready;
       const existing = await registration.pushManager.getSubscription();
-      setState(existing && permission === "granted" ? "on" : "off");
+
+      if (!existing || permission !== "granted") {
+        setState("off");
+        return;
+      }
+
+      if (subscriptionMatchesKey(existing, vapidPublicKey)) {
+        setState("on");
+        return;
+      }
+
+      // Same device, same permission, but this subscription was created
+      // under a VAPID key the server no longer uses -- every send would fail
+      // forever (see DEAD_STATUS_CODES in push.service.ts) with nothing on
+      // the browser side ever signalling it, since pushsubscriptionchange
+      // only fires for endpoint rotation, not a server-side key change.
+      try {
+        await resubscribeWithCurrentKey(existing, vapidPublicKey);
+        setState("on");
+      } catch {
+        setState("off");
+      }
     } catch {
       setState("off");
     }
-  }, []);
+  }, [vapidPublicKey]);
 
   useEffect(() => {
     void refresh();

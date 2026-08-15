@@ -38,6 +38,35 @@ export function urlBase64ToBuffer(base64String: string): ArrayBuffer {
   return buffer;
 }
 
+/**
+ * Whether a browser subscription was created under the VAPID public key
+ * currently configured on the server.
+ *
+ * A subscription created under a since-rotated key keeps looking healthy
+ * from the browser's side -- permission stays granted, the endpoint stays
+ * valid, `getSubscription()` keeps returning it -- but every send from the
+ * server fails, because the server's private key no longer matches what the
+ * browser encrypted this subscription against. `pushsubscriptionchange`
+ * (public/sw.js) does not catch this case: it only fires when the browser or
+ * vendor rotates the endpoint, not when the server's own key changes under
+ * an endpoint that is otherwise still perfectly valid. This comparison is
+ * what catches that instead — run on every load, from the client that
+ * already knows the current key.
+ */
+export function subscriptionMatchesKey(
+  subscription: PushSubscription,
+  currentPublicKey: string,
+): boolean {
+  const existingKey = subscription.options.applicationServerKey;
+  if (!existingKey) return false;
+
+  const existing = new Uint8Array(existingKey);
+  const current = new Uint8Array(urlBase64ToBuffer(currentPublicKey));
+
+  if (existing.length !== current.length) return false;
+  return existing.every((byte, i) => byte === current[i]);
+}
+
 /** Whether this browser can do web push at all. Three separate globals
  * because they arrived in three separate specs; a browser can have service
  * workers without PushManager (older Safari) or Notification without either. */
