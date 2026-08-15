@@ -7,10 +7,12 @@ Nadi inverts that: an account is a household or a team, members live inside
 it, and every task, habit and statistic belongs to a member while remaining
 visible to the group.
 
-> **Status: v0.2.0 — feature complete.**
+> **Status: v0.3.0 — feature complete.**
 > v0.1 covers accounts, workspaces, invitations, tasks and the calendar. v0.2
 > adds recurring tasks, habit tracking with streaks and a contribution graph,
-> productivity scoring, and a workspace leaderboard.
+> productivity scoring, and a workspace leaderboard. v0.3 adds a reminders
+> engine, an installable PWA with web push, smart rescheduling, scheduling-
+> conflict detection, comments on tasks, and a drag-and-drop calendar.
 
 ---
 
@@ -211,8 +213,8 @@ it does the most work rather than where it was thought of:
 Requires Node 20 or later and a PostgreSQL database. A free
 [Neon](https://neon.tech) project works.
 
-    git clone https://github.com/YOUR-USERNAME/ai-productivity.git
-    cd ai-productivity
+    git clone https://github.com/Rahulanand112/nadi.git
+    cd nadi
     npm install
     cp .env.example .env        # add your connection strings
     npm run db:migrate
